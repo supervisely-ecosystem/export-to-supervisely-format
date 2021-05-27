@@ -9,34 +9,34 @@
 </p>
 
 
-[![](https://img.shields.io/badge/supervisely-ecosystem-brightgreen)](https://ecosystem.supervise.ly/apps/supervisely-ecosystem/resize-images)
+[![](https://img.shields.io/badge/supervisely-ecosystem-brightgreen)](https://ecosystem.supervise.ly/apps/supervisely-ecosystem/download_as_supervisely)
 [![](https://img.shields.io/badge/slack-chat-green.svg?logo=slack)](https://supervise.ly/slack)
-![GitHub release (latest SemVer)](https://img.shields.io/github/v/release/supervisely-ecosystem/resize-images)
-[![views](https://app.supervise.ly/public/api/v3/ecosystem.counters?repo=supervisely-ecosystem/resize-images&counter=views&label=views)](https://supervise.ly)
-[![used by teams](https://app.supervise.ly/public/api/v3/ecosystem.counters?repo=supervisely-ecosystem/resize-images&counter=downloads&label=used%20by%20teams)](https://supervise.ly)
-[![runs](https://app.supervise.ly/public/api/v3/ecosystem.counters?repo=supervisely-ecosystem/resize-images&counter=runs&label=runs)](https://supervise.ly)
+![GitHub release (latest SemVer)](https://img.shields.io/github/v/release/supervisely-ecosystem/download_as_supervisely)
+[![views](https://app.supervise.ly/public/api/v3/ecosystem.counters?repo=supervisely-ecosystem/download_as_supervisely&counter=views&label=views)](https://supervise.ly)
+[![used by teams](https://app.supervise.ly/public/api/v3/ecosystem.counters?repo=supervisely-ecosystem/download_as_supervisely&counter=downloads&label=used%20by%20teams)](https://supervise.ly)
+[![runs](https://app.supervise.ly/public/api/v3/ecosystem.counters?repo=supervisely-ecosystem/download_as_supervisely&counter=runs&label=runs)](https://supervise.ly)
 
 </div>
 
 # Overview
 
-This application allows to resize both images and their annotations. The result  will be saved in a new project. 
+This application allows to download both images and their annotations. The result  will be saved in a new project. 
+Export prepares downloadable .tar archive, that contains:
+- original images
+- annotations in [Supervisely JSON format](https://docs.supervise.ly/data-organization/00_ann_format_navi)
 
 # How To Use
+**Step 1**: Add app to your team from [Ecosystem](https://app.supervise.ly/apps/ecosystem/export-as-masks) if it is not there
 
-**Step 1.** Add app to your team from Ecosystem
+    
+**Step 2**: Open context menu of images project -> `Download via App` -> `Export as masks` 
 
-   Select `Ecosystem` in Main Menu -> `Transform` in Content -> `Resize images`
-<img src="https://i.imgur.com/O0uy6v1.png"/>
+<img src="https://i.imgur.com/" width="500"/>
 
-**Step 2**: Open context menu of project -> `Run App` -> `Transform` -> `Resize images` 
-<img src="https://i.imgur.com/w5pztbj.png" height="400px"/>
+**Step 3**: Define export settings in modal window
 
-**Step 3.** Set target width and height
-   
-   App contains 2 sections: fields for custom target values(width and height) and information about output team, workplace, project name. 
-   
-<img src="https://i.imgur.com/7znCxrC.png" height="400px"/>
+<img src="https://i.imgur.com/" width="400"/>
 
-**Step 4.** Press `Run` button. The progress bar will appear in `Output` section. Also you can monitor progress from tasks list of the current workspace.
-   App creates new project and it will appear in `Output` section.
+**Step 4**: Result archive will be available for download in `Tasks` list (image below) or from `Team Files` (path format is the following `Team Files`->`Export-as-masks`->`<task_id>_<projectId>_<projectName>.tar`)
+
+<img src="https://i.imgur.com/"/>
