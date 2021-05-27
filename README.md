@@ -1,5 +1,5 @@
 <div align="center" markdown>
-<img src="https://i.imgur.com/R0d7RSW.png"/>
+<img src="https://i.imgur.com/"/>
 
 # Download images and annotations
 
@@ -20,10 +20,14 @@
 
 # Overview
 
-This application allows to download both images and their annotations. The result  will be saved in a new project. 
+This application allows to download both images and their annotations (only annotations in `*.json` fromat or ). The result  will be saved in a new project. 
 Export prepares downloadable .tar archive, that contains:
-- original images
-- annotations in [Supervisely JSON format](https://docs.supervise.ly/data-organization/00_ann_format_navi)
+- only annotations in `*.json` fromat:
+  - annotations in [Supervisely JSON format](https://docs.supervise.ly/data-organization/00_ann_format_navi)
+  - 
+- whole project as `*.json + images`:
+  - original images
+  - annotations in [Supervisely JSON format](https://docs.supervise.ly/data-organization/00_ann_format_navi)
 
 # How To Use
 **Step 1**: Add app to your team from [Ecosystem](https://app.supervise.ly/apps/ecosystem/export-as-masks) if it is not there
