@@ -10,7 +10,7 @@
   "modal_template": "src/modal.html",
   "modal_template_state": {
     "radioButtons": 11,
-    "checked": true
+    "checkedButton": true
   },
   "task_location": "workspace_tasks",
   "isolate": true,
