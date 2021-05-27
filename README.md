@@ -20,7 +20,7 @@
 
 # Overview
 
-Export prepares downloadable `.tar` archive, that contains:
+Export prepares downloadable `.tar` archive, that can contain the following structure depending on selected settings:
 - only annotations in `*.json` fromat:
   - annotations in [Supervisely JSON format](https://docs.supervise.ly/data-organization/00_ann_format_navi)
 
