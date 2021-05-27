@@ -1,4 +1,5 @@
 import os
+import distutils
 import supervisely_lib as sly
 
 api: sly.Api = sly.Api.from_env()
@@ -9,5 +10,5 @@ WORKSPACE_ID = int(os.environ['context.workspaceId'])
 PROJECT_ID = int(os.environ['modal.state.slyProjectId'])
 task_id = int(os.environ["TASK_ID"])
 mode = int(os.environ['modal.state.radioButtons'])
-replace_method = bool(os.environ['modal.state.checkedButton'])
+replace_method = bool(distutils.util.strtobool(os.environ['modal.state.checkedButton']))
 batch_size = 10

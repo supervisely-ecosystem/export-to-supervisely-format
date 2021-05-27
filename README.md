@@ -1,7 +1,7 @@
 <div align="center" markdown>
-<img src="https://i.imgur.com/"/>
+<img src="https://i.imgur.com/9eRexuy.png"/>
 
-# Download project
+# Export images project to Supervisely Format
 
 <p align="center">
   <a href="#Overview">Overview</a> •
@@ -20,19 +20,13 @@
 
 # Overview
 
-Export prepares downloadable `.tar` archive, that can contain the following structure depending on selected settings:
-- whole project as `*.json annotations + images`:
-  - original images
-  - annotations in [Supervisely JSON format](https://docs.supervise.ly/data-organization/00_ann_format_navi)
-- only `*.json annotations`:
-  - annotations in [Supervisely JSON format](https://docs.supervise.ly/data-organization/00_ann_format_navi)
+Download images project in [Supervisely JSON format](https://docs.supervise.ly/data-organization/00_ann_format_navi). It is possible to download both images and annotations or only annotations.
 
 
 # How To Use
-**Step 1**: Add app to your team from [Ecosystem](https://app.supervise.ly/apps/ecosystem/export-as-masks) if it is not there
+**Step 1**: Add app to your team from [Ecosystem](https://ecosystem.supervise.ly/apps/supervisely-ecosystem/export-to-supervisely-format) if it is not there
 
-    
-**Step 2**: Open context menu of images project -> `Run App` -> `Export` -> `Downloas as images` 
+**Step 2**: Open context menu of images project -> `Run App` -> `Download via app` -> `Export to Supervisely format` 
 
 <img src="https://i.imgur.com/DM36rU3.png"/>
 

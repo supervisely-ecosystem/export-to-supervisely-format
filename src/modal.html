@@ -1,11 +1,12 @@
 <div>
-    <sly-field title="Download as Supervisely" description="Define target width and height">
+    <sly-field title="Download options" description="Select what to download">
         <el-radio-group v-model="state.radioButtons">
-            <el-radio :label="11">.json annotations + image</el-radio>
-            <el-radio :label="12">.json annotations</el-radio>
+            <el-radio :label="11">json annotations + images</el-radio>
+            <el-radio :label="12">only json annotations</el-radio>
         </el-radio-group>
     </sly-field>
-    <sly-fiels>
-        <el-checkbox v-model="state.checkedButton">set active if extension and mimetipe are different</el-checkbox>
+    <sly-fiels title="Extension" description="For example, image 'abc.jpg' has jpg extension but the actual image data is in PNG format. 
+                                              Such cases will be resolved and image will be exported as 'abc.jpg.png'">
+        <el-checkbox v-model="state.checkedButton">fix image extension based on image MIME type (recommended)</el-checkbox>
     </sly-fiels>
 </div>
