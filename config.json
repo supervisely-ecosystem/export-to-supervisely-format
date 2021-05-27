@@ -9,12 +9,12 @@
   "main_script": "src/main.py",
   "modal_template": "src/modal.html",
   "modal_template_state": {
-    "radioButtons": 12
+    "radioButtons": 11
   },
   "task_location": "workspace_tasks",
   "isolate": true,
   "headless": true,
-  "icon": "https://i.imgur.com/ZSM70pg.png ???",
+  "icon": "https://i.imgur.com/WALIRub.png",
   "icon_background": "#FFFFFF",
   "context_menu": {
     "target": ["images_project"],
