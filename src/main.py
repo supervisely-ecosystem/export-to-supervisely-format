@@ -4,7 +4,6 @@ import globals as g
 from ui import ui
 from extension.change_image_api_class_method import ours_convert_json_info
 sly.api.image_api.ImageApi._convert_json_info = ours_convert_json_info
-print('!')
 
 
 @g.my_app.callback("download_as_sly")
