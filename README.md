@@ -1,7 +1,7 @@
 <div align="center" markdown>
-<img src="https://i.imgur.com/"/>
+<img src="https://i.imgur.com/9eRexuy.png"/>
 
-# Download images and annotations
+# Export images project to Supervisely Format
 
 <p align="center">
   <a href="#Overview">Overview</a> •
