@@ -43,4 +43,4 @@ Export prepares downloadable .tar archive, that contains:
 
 **Step 4**: Result archive will be available for download in `Tasks` list (image below) or from `Team Files` (path format is the following `Team Files`->`Export-as-masks`->`<task_id>_<projectId>_<projectName>.tar`)
 
-<img src="https://i.imgur.com/"/>
+<img src="https://i.imgur.com/I0umhsL.png">
