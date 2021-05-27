@@ -24,7 +24,7 @@ This application allows to download both images and their annotations (only anno
 Export prepares downloadable .tar archive, that contains:
 - only annotations in `*.json` fromat:
   - annotations in [Supervisely JSON format](https://docs.supervise.ly/data-organization/00_ann_format_navi)
-  - 
+
 - whole project as `*.json + images`:
   - original images
   - annotations in [Supervisely JSON format](https://docs.supervise.ly/data-organization/00_ann_format_navi)
