@@ -19,6 +19,6 @@
   "icon_background": "#FFFFFF",
   "context_menu": {
     "target": ["images_project"],
-    "context_category": "Export"
+    "context_root": "Download as"
   }
 }
