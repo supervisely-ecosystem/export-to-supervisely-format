@@ -21,12 +21,12 @@
 # Overview
 
 Export prepares downloadable `.tar` archive, that can contain the following structure depending on selected settings:
-- only annotations in `*.json annotations` fromat:
-  - annotations in [Supervisely JSON format](https://docs.supervise.ly/data-organization/00_ann_format_navi)
-
 - whole project as `*.json annotations + images`:
   - original images
   - annotations in [Supervisely JSON format](https://docs.supervise.ly/data-organization/00_ann_format_navi)
+- only annotations in `*.json annotations` fromat:
+  - annotations in [Supervisely JSON format](https://docs.supervise.ly/data-organization/00_ann_format_navi)
+
 
 # How To Use
 **Step 1**: Add app to your team from [Ecosystem](https://app.supervise.ly/apps/ecosystem/export-as-masks) if it is not there
