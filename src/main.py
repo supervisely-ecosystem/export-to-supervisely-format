@@ -16,18 +16,11 @@ def download_as_sly(api: sly.Api, task_id, context, state, app_logger):
         download_json_plus_images(api, project, dataset_ids)
     else:
         download_only_json(api, project, dataset_ids)
-    full_archive_name = str(project.id) + '_' + project.name + '.tar'
-    result_archive = os.path.join(g.my_app.data_dir, full_archive_name)
-    sly.fs.archive_directory(dest_dir, result_archive)
-    app_logger.info("Result directory is archived")
-    
     download_dir = os.path.join(g.my_app.data_dir, f'{project.id}_{project.name}')
-    
     full_archive_name = str(project.id) + '_' + project.name + '.tar'
     result_archive = os.path.join(g.my_app.data_dir, full_archive_name)
     sly.fs.archive_directory(download_dir, result_archive)
     app_logger.info("Result directory is archived")
-
     upload_progress = []
     remote_archive_path = "/Download-data/{}_{}".format(task_id, full_archive_name)
 
