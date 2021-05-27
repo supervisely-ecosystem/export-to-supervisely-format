@@ -24,7 +24,7 @@ Export prepares downloadable `.tar` archive, that can contain the following stru
 - whole project as `*.json annotations + images`:
   - original images
   - annotations in [Supervisely JSON format](https://docs.supervise.ly/data-organization/00_ann_format_navi)
-- only annotations in `*.json annotations` fromat:
+- only `*.json annotations`:
   - annotations in [Supervisely JSON format](https://docs.supervise.ly/data-organization/00_ann_format_navi)
 
 
