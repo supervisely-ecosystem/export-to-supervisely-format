@@ -1,0 +1,23 @@
+{
+  "name": "Download as images",
+  "type": "app",
+  "categories": [
+    "export"
+  ],
+  "description": "both images and their annotations",
+  "docker_image": "supervisely/base-py-sdk:6.1.80",
+  "main_script": "src/main.py",
+  "modal_template": "src/modal.html",
+  "modal_template_state": {
+    "radioButtons": 11
+  },
+  "task_location": "workspace_tasks",
+  "isolate": true,
+  "headless": true,
+  "icon": "https://i.imgur.com/ZSM70pg.png ???",
+  "icon_background": "#FFFFFF",
+  "context_menu": {
+    "target": ["images_project"],
+    "context_category": "Export"
+  }
+}
