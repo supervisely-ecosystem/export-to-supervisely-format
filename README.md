@@ -33,7 +33,7 @@ Export prepares downloadable .tar archive, that contains:
 **Step 1**: Add app to your team from [Ecosystem](https://app.supervise.ly/apps/ecosystem/export-as-masks) if it is not there
 
     
-**Step 2**: Open context menu of images project -> `Download via App` -> `Export as masks` 
+**Step 2**: Open context menu of images project -> `Run App` -> `Export` -> `Downloas as images` 
 
 <img src="https://i.imgur.com/GRWZbuU.png"/>
 
