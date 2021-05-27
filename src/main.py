@@ -3,7 +3,8 @@ import supervisely_lib as sly
 import globals as g
 from ui import ui
 
-if bool(g.replace_method):
+if g.replace_method:
+    print('Entered')
     from extension.change_image_api_class_method import ours_convert_json_info
     sly.api.image_api.ImageApi._convert_json_info = ours_convert_json_info
 

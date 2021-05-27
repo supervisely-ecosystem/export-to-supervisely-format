@@ -9,5 +9,5 @@ WORKSPACE_ID = int(os.environ['context.workspaceId'])
 PROJECT_ID = int(os.environ['modal.state.slyProjectId'])
 task_id = int(os.environ["TASK_ID"])
 mode = int(os.environ['modal.state.radioButtons'])
-replace_method = os.environ['modal.state.checked']
+replace_method = bool(os.environ['modal.state.checked'])
 batch_size = 10
