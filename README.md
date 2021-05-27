@@ -21,10 +21,10 @@
 # Overview
 
 Export prepares downloadable `.tar` archive, that can contain the following structure depending on selected settings:
-- only annotations in `*.json` fromat:
+- only annotations in `*.json annotations` fromat:
   - annotations in [Supervisely JSON format](https://docs.supervise.ly/data-organization/00_ann_format_navi)
 
-- whole project as `*.json + images`:
+- whole project as `*.json annotations + images`:
   - original images
   - annotations in [Supervisely JSON format](https://docs.supervise.ly/data-organization/00_ann_format_navi)
 
