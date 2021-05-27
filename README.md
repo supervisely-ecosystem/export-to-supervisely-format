@@ -35,7 +35,7 @@ Export prepares downloadable .tar archive, that contains:
     
 **Step 2**: Open context menu of images project -> `Run App` -> `Export` -> `Downloas as images` 
 
-<img src="https://i.imgur.com/GRWZbuU.png" height="400px"/>
+<img src="https://i.imgur.com/DM36rU3.png"/>
 
 **Step 3**: Define export settings in modal window
 
