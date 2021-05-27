@@ -35,7 +35,7 @@ Export prepares downloadable .tar archive, that contains:
     
 **Step 2**: Open context menu of images project -> `Download via App` -> `Export as masks` 
 
-<img src="https://i.imgur.com/GRWZbuU.png" width="500"/>
+<img src="https://i.imgur.com/GRWZbuU.png"/>
 
 **Step 3**: Define export settings in modal window
 
