@@ -9,7 +9,8 @@
   "main_script": "src/main.py",
   "modal_template": "src/modal.html",
   "modal_template_state": {
-    "radioButtons": 11
+    "radioButtons": 11,
+    "checked": true
   },
   "task_location": "workspace_tasks",
   "isolate": true,
