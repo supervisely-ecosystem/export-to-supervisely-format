@@ -20,7 +20,6 @@
 
 # Overview
 
-This application allows to download both images and their annotations (only annotations in `*.json` fromat or ). The result  will be saved in a new project. 
 Export prepares downloadable .tar archive, that contains:
 - only annotations in `*.json` fromat:
   - annotations in [Supervisely JSON format](https://docs.supervise.ly/data-organization/00_ann_format_navi)
