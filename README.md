@@ -24,7 +24,7 @@ Download images project in [Supervisely JSON format](https://docs.supervise.ly/d
 
 
 # How To Use
-**Step 1**: Add app to your team from [Ecosystem](https://ecosystem.supervise.ly/apps/supervisely-ecosystem/export-to-supervisely-format) if it is not there
+**Step 1**: Add app to your team from [Ecosystem](https://ecosystem.supervise.ly/apps/export-to-supervisely-format) if it is not there
 
 **Step 2**: Open context menu of images project -> `Run App` -> `Download via app` -> `Export to Supervisely format` 
 
