@@ -4,7 +4,7 @@ import globals as g
 from ui import ui
 
 if g.replace_method:
-    print('Entered')
+    sly.logger.debug('change SDK method')
     from extension.change_image_api_class_method import ours_convert_json_info
     sly.api.image_api.ImageApi._convert_json_info = ours_convert_json_info
 
@@ -19,6 +19,7 @@ def download_as_sly(api: sly.Api, task_id, context, state, app_logger):
         download_json_plus_images(api, project, dataset_ids)
     else:
         download_only_json(api, project, dataset_ids)
+
     download_dir = os.path.join(g.my_app.data_dir, f'{project.id}_{project.name}')
     full_archive_name = str(project.id) + '_' + project.name + '.tar'
     result_archive = os.path.join(g.my_app.data_dir, full_archive_name)
@@ -26,7 +27,6 @@ def download_as_sly(api: sly.Api, task_id, context, state, app_logger):
     app_logger.info("Result directory is archived")
     upload_progress = []
     remote_archive_path = "/Download-data/{}_{}".format(task_id, full_archive_name)
-
 
     def _print_progress(monitor, upload_progress):
         if len(upload_progress) == 0:
