@@ -28,12 +28,12 @@ Download images project in [Supervisely JSON format](https://docs.supervise.ly/d
 
 **Step 2**: Open context menu of images project -> `Run App` -> `Download via app` -> `Export to Supervisely format` 
 
-<img src="https://i.imgur.com/DM36rU3.png"/>
+<img src="https://i.imgur.com/xEZOC9Y.png"/>
 
 **Step 3**: Define export settings in modal window
 
-<img src="https://i.imgur.com/Ml3ipxq.png">
+<img src="https://i.imgur.com/ilTcO4q.png">
 
 **Step 4**: Result archive will be available for download in `Tasks` list (image below) or from `Team Files` (path format is the following `Team Files`->`Download-data`->`<task_id>_<projectId>_<projectName>.tar`)
 
-<img src="https://i.imgur.com/GIrpEUZ.png">
+<img src="https://i.imgur.com/QjFHRtx.png">
