@@ -2,7 +2,8 @@ import os
 import supervisely_lib as sly
 from supervisely_lib.api.module_api import ApiField
 from supervisely_lib.io.fs import get_file_ext
-import distutils
+# import distutils
+from distutils import util
 
 api: sly.Api = sly.Api.from_env()
 my_app: sly.AppService = sly.AppService()
@@ -12,7 +13,7 @@ WORKSPACE_ID = int(os.environ['context.workspaceId'])
 PROJECT_ID = int(os.environ['modal.state.slyProjectId'])
 task_id = int(os.environ["TASK_ID"])
 mode = os.environ['modal.state.download']
-replace_method = bool(distutils.util.strtobool(os.environ['modal.state.fixExtension']))
+replace_method = bool(util.strtobool(os.environ['modal.state.fixExtension']))
 batch_size = 10
 
 
