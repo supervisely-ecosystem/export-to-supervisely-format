@@ -11,7 +11,7 @@ TEAM_ID = int(os.environ['context.teamId'])
 WORKSPACE_ID = int(os.environ['context.workspaceId'])
 PROJECT_ID = int(os.environ['modal.state.slyProjectId'])
 task_id = int(os.environ["TASK_ID"])
-mode = int(os.environ['modal.state.download'])
+mode = os.environ['modal.state.download']
 replace_method = bool(distutils.util.strtobool(os.environ['modal.state.fixExtension']))
 batch_size = 10
 
@@ -63,7 +63,7 @@ def download_as_sly(api: sly.Api, task_id, context, state, app_logger):
     project = api.project.get_info_by_id(PROJECT_ID)
     datasets = api.dataset.get_list(project.id)
     dataset_ids = [dataset.id for dataset in datasets]
-    if mode == 11:
+    if mode == 'all':
         download_json_plus_images(api, project, dataset_ids)
     else:
         download_only_json(api, project, dataset_ids)
