@@ -143,8 +143,7 @@ def main():
             "PROJECT_ID":   PROJECT_ID
         }
     )
-    # image_id = 4949471
-    # g.api.image.get_info_by_id(image_id)
+
     data = {}
     state = {}
     init(data, state)
