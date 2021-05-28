@@ -28,7 +28,7 @@ Download images project in [Supervisely JSON format](https://docs.supervise.ly/d
 
 **Step 2**: Open context menu of images project -> `Run App` -> `Download via app` -> `Export to Supervisely format` 
 
-<img src="https://i.imgur.com/xEZOC9Y.png" width="700"/>
+<img src="https://i.imgur.com/vQJtEyA.png" width="700"/>
 
 **Step 3**: Define export settings in modal window
 
