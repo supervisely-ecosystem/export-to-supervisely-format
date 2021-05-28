@@ -47,9 +47,9 @@ def ours_convert_json_info(self, info: dict, skip_missing=True):
 
 
 def init(data, state):
-    data['radioButtons'] = mode
-    state['radioButtons'] = mode
-    state['checked'] = replace_method
+    data['download'] = mode
+    state['download'] = mode
+    state['fixExtension'] = replace_method
 
 
 if replace_method:
