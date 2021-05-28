@@ -2,7 +2,6 @@ import os
 import supervisely_lib as sly
 from supervisely_lib.api.module_api import ApiField
 from supervisely_lib.io.fs import get_file_ext
-# import distutils
 from distutils import util
 
 api: sly.Api = sly.Api.from_env()
