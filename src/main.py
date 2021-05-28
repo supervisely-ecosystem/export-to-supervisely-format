@@ -11,8 +11,8 @@ TEAM_ID = int(os.environ['context.teamId'])
 WORKSPACE_ID = int(os.environ['context.workspaceId'])
 PROJECT_ID = int(os.environ['modal.state.slyProjectId'])
 task_id = int(os.environ["TASK_ID"])
-mode = int(os.environ['modal.state.radioButtons'])
-replace_method = bool(distutils.util.strtobool(os.environ['modal.state.checkedButton']))
+mode = int(os.environ['modal.state.download'])
+replace_method = bool(distutils.util.strtobool(os.environ['modal.state.fixExtension']))
 batch_size = 10
 
 
