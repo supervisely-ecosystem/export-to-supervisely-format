@@ -47,7 +47,6 @@ def ours_convert_json_info(self, info: dict, skip_missing=True):
 
 
 def init(data, state):
-    data['download'] = mode
     state['download'] = mode
     state['fixExtension'] = replace_method
 
