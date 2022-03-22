@@ -1,7 +1,7 @@
 import os
 import supervisely_lib as sly
-from supervisely_lib.api.module_api import ApiField
-from supervisely_lib.io.fs import get_file_ext
+from supervisely.api.module_api import ApiField
+from supervisely.io.fs import get_file_ext
 from supervisely.app.v1.app_service import AppService
 from distutils import util
 
