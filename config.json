@@ -2,6 +2,7 @@
   "name": "Export to Supervisely format",
   "type": "app",
   "categories": [
+    "images",
     "export"
   ],
   "description": "images and JSON annotations",
