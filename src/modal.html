@@ -5,7 +5,7 @@
             <el-radio label="only_json">only json annotations</el-radio>
         </el-radio-group>
     </sly-field>
-    <sly-fiels title="Image extension"
+    <sly-field title="Image extension"
                description="For example, image 'abc.jpg' has jpg extension but the actual image data is in PNG format.
                                               Such cases will be resolved and image will be exported as 'abc.jpg.png'">
         <el-checkbox v-model="state.fixExtension">fix image extension based on image MIME type</el-checkbox>
