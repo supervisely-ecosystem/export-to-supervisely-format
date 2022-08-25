@@ -1,5 +1,5 @@
 <div align="center" markdown>
-<img src="https://i.imgur.com/9eRexuy.png"/>
+<img src="https://user-images.githubusercontent.com/106374579/186665737-ec3da9cc-193f-43ee-85db-a6f802b2dfe4.png"/>
 
 # Export images project to Supervisely Format
 
