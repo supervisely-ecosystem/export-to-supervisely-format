@@ -118,7 +118,7 @@ class MyExport(sly.app.Export):
         if context.dataset_id is not None:
             dataset_ids = [context.dataset_id]
         else:
-            [dataset.id for dataset in datasets]
+            dataset_ids = [dataset.id for dataset in datasets]
 
         if mode == "all":
             download_json_plus_images(api, project, dataset_ids)
