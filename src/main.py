@@ -11,6 +11,9 @@ my_app: AppService = AppService()
 TEAM_ID = int(os.environ['context.teamId'])
 WORKSPACE_ID = int(os.environ['context.workspaceId'])
 PROJECT_ID = int(os.environ['modal.state.slyProjectId'])
+DATASET_ID = os.environ.get('modal.state.slyDatasetId', None)
+if DATASET_ID is not None:
+    DATASET_ID = int(DATASET_ID)
 task_id = int(os.environ["TASK_ID"])
 mode = os.environ['modal.state.download']
 replace_method = bool(util.strtobool(os.environ['modal.state.fixExtension']))
@@ -60,9 +63,16 @@ if replace_method:
 @my_app.callback("download_as_sly")
 @sly.timeit
 def download_as_sly(api: sly.Api, task_id, context, state, app_logger):
+    global TEAM_ID, PROJECT_ID, DATASET_ID, mode
+    if DATASET_ID is not None:
+        dataset_ids = [DATASET_ID]
+        dataset = api.dataset.get_info_by_id(DATASET_ID)
+        if PROJECT_ID is None:
+            PROJECT_ID = dataset.project_id
+    else:
+        datasets = api.dataset.get_list(PROJECT_ID)
+        dataset_ids = [dataset.id for dataset in datasets]
     project = api.project.get_info_by_id(PROJECT_ID)
-    datasets = api.dataset.get_list(project.id)
-    dataset_ids = [dataset.id for dataset in datasets]
     if mode == 'all':
         download_json_plus_images(api, project, dataset_ids)
     else:
