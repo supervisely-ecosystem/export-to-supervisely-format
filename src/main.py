@@ -97,7 +97,7 @@ def download_as_sly(api: sly.Api, task_id, context, state, app_logger):
 
     file_info = api.file.upload(TEAM_ID, result_archive, remote_archive_path,
                                 lambda m: _print_progress(m, upload_progress))
-    app_logger.info("Uploaded to Team-Files: {!r}".format(file_info.storage_path))
+    app_logger.info("Uploaded to Team-Files: {!r}".format(file_info.path))
     api.task.set_output_archive(task_id, file_info.id, full_archive_name, file_url=file_info.storage_path)
     my_app.stop()
 
@@ -105,6 +105,8 @@ def download_as_sly(api: sly.Api, task_id, context, state, app_logger):
 def download_json_plus_images(api, project, dataset_ids):
     sly.logger.info('DOWNLOAD_PROJECT', extra={'title': project.name})
     download_dir = os.path.join(my_app.data_dir, f'{project.id}_{project.name}')
+    if os.path.exists(download_dir):
+        sly.fs.clean_dir(download_dir)
     sly.download_project(api, project.id, download_dir, dataset_ids=dataset_ids,
                          log_progress=True, batch_size=batch_size)
     sly.logger.info('Project {!r} has been successfully downloaded.'.format(project.name))
