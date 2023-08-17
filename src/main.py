@@ -4,9 +4,18 @@ from supervisely.api.module_api import ApiField
 from supervisely.io.fs import get_file_ext
 from supervisely.app.v1.app_service import AppService
 from distutils import util
+from dotenv import load_dotenv
+
+from dataset_tools import ProjectRepo
+
+if sly.is_development():
+    load_dotenv("local.env")
+    load_dotenv(os.path.expanduser("~/ninja.env"))
+
 
 api: sly.Api = sly.Api.from_env()
 my_app: AppService = AppService()
+
 
 TEAM_ID = int(os.environ['context.teamId'])
 WORKSPACE_ID = int(os.environ['context.workspaceId'])
@@ -14,6 +23,7 @@ PROJECT_ID = int(os.environ['modal.state.slyProjectId'])
 DATASET_ID = os.environ.get('modal.state.slyDatasetId', None)
 if DATASET_ID is not None:
     DATASET_ID = int(DATASET_ID)
+
 task_id = int(os.environ["TASK_ID"])
 mode = os.environ['modal.state.download']
 replace_method = bool(util.strtobool(os.environ['modal.state.fixExtension']))
