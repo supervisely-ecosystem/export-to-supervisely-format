@@ -121,6 +121,7 @@ def download_json_plus_images(api, project, dataset_ids):
                          log_progress=True, batch_size=batch_size)
     sly.logger.info('Project {!r} has been successfully downloaded.'.format(project.name))
 
+    sly.logger.info("Start building files...")
     build_license(project.custom_data['LICENSE'], download_dir)
     build_readme(project.custom_data, download_dir)
     sly.logger.info("'LICENSE.md' and 'README.md' were successfully built.")
