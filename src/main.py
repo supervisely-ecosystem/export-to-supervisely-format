@@ -121,6 +121,10 @@ def download_json_plus_images(api, project, dataset_ids):
                          log_progress=True, batch_size=batch_size)
     sly.logger.info('Project {!r} has been successfully downloaded.'.format(project.name))
 
+    build_license(project.custom_data['LICENSE'], download_dir)
+    build_readme(project.custom_data, download_dir)
+    sly.logger.info("'LICENSE.md' and 'README.md' were successfully built.")
+
 
 def download_only_json(api, project, dataset_ids):
     sly.logger.info('DOWNLOAD_PROJECT', extra={'title': project.name})
@@ -156,6 +160,17 @@ def download_only_json(api, project, dataset_ids):
     sly.logger.info('Project {!r} has been successfully downloaded'.format(project.name))
     sly.logger.info('Total number of images: {!r}'.format(total_images))
 
+def build_license(custom_data, download_dir):
+
+    license_path = os.path.join(download_dir, "LICENSE.md")
+    license_content = custom_data['LICENSE']
+
+    with open(license_path, "w") as license_file:
+        license_file.write(license_content)
+
+
+def build_readme(custom_data, download_dir):
+    pass
 
 def main():
     sly.logger.info(
