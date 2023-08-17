@@ -164,7 +164,8 @@ def download_only_json(api, project, dataset_ids):
 def build_license(custom_data, download_dir):
 
     license_path = os.path.join(download_dir, "LICENSE.md")
-    license_content = custom_data['LICENSE']
+    print(type(custom_data))
+    license_content = custom_data.get('LICENSE', "jndjj")
 
     with open(license_path, "w") as license_file:
         license_file.write(license_content)
