@@ -76,7 +76,7 @@ def download_as_sly(api: sly.Api, task_id, context, state, app_logger):
         try:
             datasets = api.dataset.get_list(project.id)
         except Exception as e:
-            raise Exception(f"Failed to get list of datasets from {project.id}: {e}")
+            raise Exception(f"Failed to get list of datasets from project ID:{project.id}. {e}")
         dataset_ids = [dataset.id for dataset in datasets]
     if mode == 'all':
         download_json_plus_images(api, project, dataset_ids)
