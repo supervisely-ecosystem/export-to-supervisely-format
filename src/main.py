@@ -73,6 +73,8 @@ def download_as_sly(api: sly.Api, task_id, context, state, app_logger):
         datasets = api.dataset.get_list(PROJECT_ID)
         dataset_ids = [dataset.id for dataset in datasets]
     project = api.project.get_info_by_id(PROJECT_ID)
+    if project is None:
+        raise Exception(f"Project with ID {PROJECT_ID} not found in your account")
     if mode == 'all':
         download_json_plus_images(api, project, dataset_ids)
     else:
