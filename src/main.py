@@ -113,7 +113,7 @@ def download_as_sly(api: sly.Api, task_id, context, state, app_logger):
 
 
 def download_json_plus_images(api, project, dataset_ids):
-    sly.logger.info('DOWNLOAD_PROJECT', extra={'title': project.name})
+    sly.logger.info('###########DOWNLOAD_PROJECT', extra={'title': project.name})
     download_dir = os.path.join(my_app.data_dir, f'{project.id}_{project.name}')
     if os.path.exists(download_dir):
         sly.fs.clean_dir(download_dir)
