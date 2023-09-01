@@ -6,7 +6,7 @@
         "export"
     ],
     "description": "images and JSON annotations",
-    "docker_image": "supervisely/import-export:0.0.5",
+    "docker_image": "supervisely/import-export:6.72.114",
     "instance_version": "6.5.1",
     "main_script": "src/main.py",
     "modal_template": "src/modal.html",

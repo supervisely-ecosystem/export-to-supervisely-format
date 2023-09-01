@@ -1,5 +1,8 @@
 secret_debug.env
 .idea
+venv
+.venv/
+dataset_tools
 .venv
 dataset_tools
 debug

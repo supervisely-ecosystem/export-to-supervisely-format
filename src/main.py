@@ -74,15 +74,20 @@ if replace_method:
 @sly.timeit
 def download_as_sly(api: sly.Api, task_id, context, state, app_logger):
     global TEAM_ID, PROJECT_ID, DATASET_ID, mode
+    project = api.project.get_info_by_id(PROJECT_ID)
+    if project is None:
+        raise Exception(f"Project with ID {PROJECT_ID} not found in your account")
     if DATASET_ID is not None:
         dataset_ids = [DATASET_ID]
         dataset = api.dataset.get_info_by_id(DATASET_ID)
-        if PROJECT_ID is None:
-            PROJECT_ID = dataset.project_id
+        if dataset is None:
+            raise Exception(f"Dataset with ID {DATASET_ID} not found in your account")
     else:
-        datasets = api.dataset.get_list(PROJECT_ID)
+        try:
+            datasets = api.dataset.get_list(project.id)
+        except Exception as e:
+            raise Exception(f"Failed to get list of datasets from project ID:{project.id}. {e}")
         dataset_ids = [dataset.id for dataset in datasets]
-    project = api.project.get_info_by_id(PROJECT_ID)
     if mode == 'all':
         download_json_plus_images(api, project, dataset_ids)
     else:
