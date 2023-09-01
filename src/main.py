@@ -4,9 +4,18 @@ from supervisely.api.module_api import ApiField
 from supervisely.io.fs import get_file_ext
 from supervisely.app.v1.app_service import AppService
 from distutils import util
+from dotenv import load_dotenv
+
+from dataset_tools import ProjectRepo
+
+if sly.is_development():
+    load_dotenv("local.env")
+    load_dotenv(os.path.expanduser("~/ninja.env"))
+
 
 api: sly.Api = sly.Api.from_env()
 my_app: AppService = AppService()
+
 
 TEAM_ID = int(os.environ['context.teamId'])
 WORKSPACE_ID = int(os.environ['context.workspaceId'])
@@ -14,6 +23,7 @@ PROJECT_ID = int(os.environ['modal.state.slyProjectId'])
 DATASET_ID = os.environ.get('modal.state.slyDatasetId', None)
 if DATASET_ID is not None:
     DATASET_ID = int(DATASET_ID)
+
 task_id = int(os.environ["TASK_ID"])
 mode = os.environ['modal.state.download']
 replace_method = bool(util.strtobool(os.environ['modal.state.fixExtension']))
@@ -108,13 +118,19 @@ def download_as_sly(api: sly.Api, task_id, context, state, app_logger):
 
 
 def download_json_plus_images(api, project, dataset_ids):
-    sly.logger.info('DOWNLOAD_PROJECT', extra={'title': project.name})
+    sly.logger.info('###########DOWNLOAD_PROJECT', extra={'title': project.name})
     download_dir = os.path.join(my_app.data_dir, f'{project.id}_{project.name}')
     if os.path.exists(download_dir):
         sly.fs.clean_dir(download_dir)
     sly.download_project(api, project.id, download_dir, dataset_ids=dataset_ids,
                          log_progress=True, batch_size=batch_size)
     sly.logger.info('Project {!r} has been successfully downloaded.'.format(project.name))
+
+    sly.logger.info("Start building files...")
+    print(project.custom_data)
+    build_license(project.custom_data["LICENSE"], download_dir)
+    build_readme(project.custom_data["README"], download_dir)
+    sly.logger.info("'LICENSE.md' and 'README.md' were successfully built.")
 
 
 def download_only_json(api, project, dataset_ids):
@@ -151,6 +167,17 @@ def download_only_json(api, project, dataset_ids):
     sly.logger.info('Project {!r} has been successfully downloaded'.format(project.name))
     sly.logger.info('Total number of images: {!r}'.format(total_images))
 
+def build_license(license_content:str, download_dir:str):
+    license_path = os.path.join(download_dir, "LICENSE.md")
+    print(license_content)
+    with open(license_path, "w") as license_file:
+        license_file.write(license_content)
+
+
+def build_readme(readme_content, download_dir):
+    readme_path = os.path.join(download_dir, "README.md")
+    with open(readme_path, "w") as license_file:
+        license_file.write(readme_content)
 
 def main():
     sly.logger.info(

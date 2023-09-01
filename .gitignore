@@ -3,3 +3,4 @@ secret_debug.env
 venv
 .venv/
 dataset_tools
+supervisely
