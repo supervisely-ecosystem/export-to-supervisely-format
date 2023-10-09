@@ -113,7 +113,7 @@ def download_json_plus_images(api, project, dataset_ids):
     if os.path.exists(download_dir):
         sly.fs.clean_dir(download_dir)
     sly.download_project(api, project.id, download_dir, dataset_ids=dataset_ids,
-                         log_progress=True, batch_size=batch_size)
+                         log_progress=True, batch_size=batch_size, save_image_meta=True)
     sly.logger.info('Project {!r} has been successfully downloaded.'.format(project.name))
 
 
