@@ -1,6 +1,6 @@
 import os
 import tarfile
-from tqdm import tqdm
+import tqdm
 import supervisely as sly
 from supervisely.api.module_api import ApiField
 from supervisely.io.fs import get_file_ext
@@ -174,8 +174,10 @@ def download_json_plus_images(api, project, dataset_ids):
 
     sly.logger.info("Start building files...")
     print(project.custom_data)
-    build_license(project.custom_data["LICENSE"], download_dir)
-    build_readme(project.custom_data["README"], download_dir)
+    build_license(
+        project.custom_data.get("LICENSE", "Please add license"), download_dir
+    )
+    build_readme(project.custom_data.get("README", "Please add readme"), download_dir)
     sly.logger.info("'LICENSE.md' and 'README.md' were successfully built.")
 
 
