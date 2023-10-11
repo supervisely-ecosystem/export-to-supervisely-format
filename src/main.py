@@ -3,7 +3,7 @@ import tarfile
 import tqdm
 import supervisely as sly
 from supervisely.api.module_api import ApiField
-from supervisely.io.fs import get_file_ext
+from supervisely.io.fs import get_file_ext, get_file_name_with_ext
 from supervisely.app.v1.app_service import AppService
 from distutils import util
 from dotenv import load_dotenv
@@ -36,21 +36,33 @@ replace_method = bool(util.strtobool(os.environ["modal.state.fixExtension"]))
 batch_size = 10
 
 
+def count_files(path, extensions):
+    count = 0
+    for root, dirs, files in os.walk(path):
+        for file in files:
+            if get_file_ext(file).lower() in extensions:
+                count += 1
+    return count
+
+
 def pack_directory_to_tar(source_dir, output_tar):
     if not os.path.exists(source_dir):
         raise FileNotFoundError(f"Source directory '{source_dir}' does not exist.")
 
+    extensions = [".png", ".jpg", ".tiff", ".tif", ".bmp", ".gif", ".svg"]
     with tarfile.open(output_tar, "w") as tar:
-        for root, _, files in os.walk(source_dir):
-            with tqdm.tqdm(
-                desc=f"Unpacking '{output_tar}'",
-                total=len(files),
-                unit="file",
-            ) as pbar:
+        with tqdm.tqdm(
+            desc=f"Packing '{get_file_name_with_ext(output_tar)}'",
+            total=count_files(source_dir, extensions),
+            unit="file",
+        ) as pbar:
+            for root, _, files in os.walk(source_dir):
                 for file in files:
                     file_path = os.path.join(root, file)
                     tar.add(file_path, arcname=os.path.relpath(file_path, source_dir))
-                    pbar.update(1)
+
+                    if get_file_ext(file).lower() in extensions:
+                        pbar.update(1)
 
 
 def ours_convert_json_info(self, info: dict, skip_missing=True):
@@ -173,7 +185,10 @@ def download_json_plus_images(api, project, dataset_ids):
     )
 
     sly.logger.info("Start building files...")
-    print(project.custom_data)
+    sly.logger.info(
+        f"LICENSE: {project.custom_data.get('LICENSE', 'Please add license')}"
+    )
+    sly.logger.info(f"README: {project.custom_data.get('README', 'Please add readme')}")
     build_license(
         project.custom_data.get("LICENSE", "Please add license"), download_dir
     )
