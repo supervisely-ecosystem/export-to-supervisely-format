@@ -42,9 +42,15 @@ def pack_directory_to_tar(source_dir, output_tar):
 
     with tarfile.open(output_tar, "w") as tar:
         for root, _, files in os.walk(source_dir):
-            for file in tqdm(files, desc=f"Packing to '{output_tar}'", unit="file"):
-                file_path = os.path.join(root, file)
-                tar.add(file_path, arcname=os.path.relpath(file_path, source_dir))
+            with tqdm.tqdm(
+                desc=f"Unpacking '{output_tar}'",
+                total=len(files),
+                unit="file",
+            ) as pbar:
+                for file in files:
+                    file_path = os.path.join(root, file)
+                    tar.add(file_path, arcname=os.path.relpath(file_path, source_dir))
+                    pbar.update(1)
 
 
 def ours_convert_json_info(self, info: dict, skip_missing=True):
