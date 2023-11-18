@@ -200,8 +200,8 @@ def download_json_plus_images(api, project, dataset_ids):
     #     f"LICENSE: {urls[project.name].get('LICENSE', 'Please add license')}"
     # )
     # sly.logger.info(f"README: {urls[project.name].get('README', 'Please add readme')}")
-    build_license(urls[project.name]['LICENSE'], download_dir)
-    build_readme(urls[project.name]['README'], download_dir)
+    build_license(urls[project.name]['markdown']['LICENSE'], download_dir)
+    build_readme(urls[project.name]['markdown']['README'], download_dir)
     sly.logger.info("'LICENSE.md' and 'README.md' were successfully built.")
 
 
