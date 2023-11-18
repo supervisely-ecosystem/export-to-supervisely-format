@@ -176,7 +176,7 @@ def download_json_plus_images(api, project, dataset_ids):
         sly.fs.clean_dir(download_dir)
 
     tf_urls_path = "/cache/released_datasets.json"
-    local_save_path = sly.app.get_data_dir() + '/tmp/'
+    local_save_path = sly.app.get_data_dir() + '/tmp/released_datasets.json'
     if api.file.exists(TEAM_ID, tf_urls_path):
         api.file.download(TEAM_ID, tf_urls_path, local_save_path)
         with open(local_save_path, "r") as f:
