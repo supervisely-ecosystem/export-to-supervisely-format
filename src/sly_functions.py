@@ -6,22 +6,28 @@ import supervisely as sly
 
 def _download_batch_with_retry(api: sly.Api, dataset_id, image_ids):
     retry_cnt = 5
-    curr_retry = 0
-    while curr_retry <= retry_cnt:
-        try:
-            imgs_bytes = api.image.download_bytes(dataset_id, image_ids)
-            if len(imgs_bytes) != len(image_ids):
-                raise RuntimeError(
-                    f"Downloaded {len(imgs_bytes)} images, but {len(image_ids)} expected."
-                )
-            return imgs_bytes
-        except Exception as e:
-            curr_retry += 1
-            if curr_retry <= retry_cnt:
+    curr_retry = 1
+    try:
+        imgs_bytes = api.image.download_bytes(dataset_id, image_ids)
+        if len(imgs_bytes) != len(image_ids):
+            raise RuntimeError(
+                f"Downloaded {len(imgs_bytes)} images, but {len(image_ids)} expected."
+            )
+        return imgs_bytes
+    except Exception as e:
+        sly.logger.warn(f"Failed to download images... Error: {e}")
+        while curr_retry <= retry_cnt:
+            try:
+                sly.logger.warn(f"Retry {curr_retry}/{retry_cnt} to download images")
                 time.sleep(2 * curr_retry)
-                sly.logger.warn(
-                    f"Failed to download images, retry {curr_retry} of {retry_cnt}... Error: {e}"
-                )
+                imgs_bytes = api.image.download_bytes(dataset_id, image_ids)
+                if len(imgs_bytes) != len(image_ids):
+                    raise RuntimeError(
+                        f"Downloaded {len(imgs_bytes)} images, but {len(image_ids)} expected."
+                    )
+                return imgs_bytes
+            except Exception as e:
+                curr_retry += 1
     raise RuntimeError(
         f"Failed to download images with ids {image_ids}. Check your data and try again later."
     )
@@ -78,4 +84,4 @@ def download_project(
                 dataset_fs.add_item_raw_bytes(item_name=name, item_raw_bytes=img_bytes, ann=ann)
 
             if log_progress:
-                ds_progress.iters_done_report(batch_size)
+                ds_progress.iters_done_report(len(batch))
