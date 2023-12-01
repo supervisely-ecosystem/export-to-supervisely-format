@@ -1,5 +1,6 @@
 import os
 import time
+
 import supervisely as sly
 
 
@@ -26,7 +27,15 @@ def _download_batch_with_retry(api: sly.Api, dataset_id, image_ids):
     )
 
 
-def download_project(api: sly.Api, project_id, dest_dir, dataset_ids=None, log_progress=False, batch_size=10, save_image_meta=True):
+def download_project(
+    api: sly.Api,
+    project_id,
+    dest_dir,
+    dataset_ids=None,
+    log_progress=True,
+    batch_size=10,
+    save_image_meta=True,
+):
     dataset_ids = set(dataset_ids) if (dataset_ids is not None) else None
     project_fs = sly.Project(dest_dir, sly.OpenMode.CREATE)
     meta = sly.ProjectMeta.from_json(api.project.get_meta(project_id))
@@ -54,7 +63,7 @@ def download_project(api: sly.Api, project_id, dest_dir, dataset_ids=None, log_p
                 total_cnt=len(images),
             )
 
-        for batch in sly.batched(images, batch_size=10):
+        for batch in sly.batched(images, batch_size=batch_size):
             image_ids = [image_info.id for image_info in batch]
             image_names = [image_info.name for image_info in batch]
 
@@ -69,4 +78,4 @@ def download_project(api: sly.Api, project_id, dest_dir, dataset_ids=None, log_p
                 dataset_fs.add_item_raw_bytes(item_name=name, item_raw_bytes=img_bytes, ann=ann)
 
             if log_progress:
-                ds_progress.iters_done_report(len(batch))
+                ds_progress.iters_done_report(batch_size)
