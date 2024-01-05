@@ -44,7 +44,7 @@ def download_project(
 ):
     dataset_ids = set(dataset_ids) if (dataset_ids is not None) else None
     project_fs = sly.Project(dest_dir, sly.OpenMode.CREATE)
-    meta = sly.ProjectMeta.from_json(api.project.get_meta(project_id))
+    meta = sly.ProjectMeta.from_json(api.project.get_meta(project_id, with_settings=True))
     project_fs.set_meta(meta)
 
     for dataset_info in api.dataset.get_list(project_id):
