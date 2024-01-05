@@ -145,7 +145,7 @@ def download_only_json(api, project, dataset_ids):
     sly.logger.info("DOWNLOAD_PROJECT", extra={"title": project.name})
     download_dir = os.path.join(my_app.data_dir, f"{project.id}_{project.name}")
     sly.fs.mkdir(download_dir)
-    meta_json = api.project.get_meta(project.id)
+    meta_json = api.project.get_meta(project.id, with_settings=True)
     sly.io.json.dump_json_file(meta_json, os.path.join(download_dir, "meta.json"))
 
     total_images = 0
