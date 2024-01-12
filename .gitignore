@@ -5,3 +5,4 @@ venv
 dataset_tools
 supervisely
 debug
+__pycache__
