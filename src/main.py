@@ -4,7 +4,7 @@ from distutils import util
 
 from dotenv import load_dotenv
 
-import sly_functions as f
+import sly_functions
 import supervisely as sly
 from supervisely.api.module_api import ApiField
 from supervisely.app.v1.app_service import AppService
@@ -130,7 +130,7 @@ def download_json_plus_images(api, project, dataset_ids):
     download_dir = os.path.join(my_app.data_dir, f"{project.id}_{project.name}")
     if os.path.exists(download_dir):
         sly.fs.clean_dir(download_dir)
-    f.download_project(
+    sly_functions.download_project(
         api,
         project.id,
         download_dir,
