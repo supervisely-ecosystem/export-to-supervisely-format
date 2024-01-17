@@ -1,21 +1,23 @@
-
-import os, json
+import json
+import os
 import tarfile
+from distutils import util
+
 import tqdm
+from dotenv import load_dotenv
+from PIL import Image
+
 import supervisely as sly
 from supervisely.api.module_api import ApiField
-from supervisely.io.fs import get_file_ext, get_file_name_with_ext
 from supervisely.app.v1.app_service import AppService
-from distutils import util
-from dotenv import load_dotenv
-
-from PIL import Image
+from supervisely.io.fs import get_file_ext, get_file_name_with_ext
 
 Image.MAX_IMAGE_PIXELS = 1000000000
 
+from typing import Optional
+
 from dataset_tools import ProjectRepo
 
-from typing import Optional
 if sly.is_development():
     load_dotenv("local.env")
     load_dotenv(os.path.expanduser("~/ninja.env"))
@@ -123,9 +125,7 @@ def download_as_sly(api: sly.Api, task_id, context, state, app_logger):
         try:
             datasets = api.dataset.get_list(project.id)
         except Exception as e:
-            raise Exception(
-                f"Failed to get list of datasets from project ID:{project.id}. {e}"
-            )
+            raise Exception(f"Failed to get list of datasets from project ID:{project.id}. {e}")
         dataset_ids = [dataset.id for dataset in datasets]
     if mode == "all":
         download_json_plus_images(api, project, dataset_ids)
@@ -176,13 +176,13 @@ def download_json_plus_images(api, project, dataset_ids):
         sly.fs.clean_dir(download_dir)
 
     tf_urls_path = "/cache/released_datasets.json"
-    local_save_path = sly.app.get_data_dir() + '/tmp/released_datasets.json'
+    local_save_path = sly.app.get_data_dir() + "/tmp/released_datasets.json"
     if api.file.exists(TEAM_ID, tf_urls_path):
         api.file.download(TEAM_ID, tf_urls_path, local_save_path)
         with open(local_save_path, "r") as f:
             urls = json.load(f)
     else:
-        raise FileNotFoundError(f"File not found: '{tf_urls_path}'")        
+        raise FileNotFoundError(f"File not found: '{tf_urls_path}'")
     sly.download_project(
         api,
         project.id,
@@ -191,17 +191,15 @@ def download_json_plus_images(api, project, dataset_ids):
         log_progress=True,
         batch_size=batch_size,
     )
-    sly.logger.info(
-        "Project {!r} has been successfully downloaded.".format(project.name)
-    )
+    sly.logger.info("Project {!r} has been successfully downloaded.".format(project.name))
 
     sly.logger.info("Start building files...")
     # sly.logger.info(
     #     f"LICENSE: {urls[project.name].get('LICENSE', 'Please add license')}"
     # )
     # sly.logger.info(f"README: {urls[project.name].get('README', 'Please add readme')}")
-    build_license(urls[project.name]['markdown']['LICENSE'], download_dir)
-    build_readme(urls[project.name]['markdown']['README'], download_dir)
+    build_license(urls[project.name]["markdown"]["LICENSE"], download_dir)
+    build_readme(urls[project.name]["markdown"]["README"], download_dir)
     sly.logger.info("'LICENSE.md' and 'README.md' were successfully built.")
 
 
@@ -209,7 +207,7 @@ def download_only_json(api, project, dataset_ids):
     sly.logger.info("DOWNLOAD_PROJECT", extra={"title": project.name})
     download_dir = os.path.join(my_app.data_dir, f"{project.id}_{project.name}")
     sly.fs.mkdir(download_dir)
-    meta_json = api.project.get_meta(project.id)
+    meta_json = api.project.get_meta(project.id, with_settings=True)
     sly.io.json.dump_json_file(meta_json, os.path.join(download_dir, "meta.json"))
 
     total_images = 0
@@ -242,9 +240,7 @@ def download_only_json(api, project, dataset_ids):
             ds_progress.iters_done_report(len(batch))
             total_images += len(batch)
 
-    sly.logger.info(
-        "Project {!r} has been successfully downloaded".format(project.name)
-    )
+    sly.logger.info("Project {!r} has been successfully downloaded".format(project.name))
     sly.logger.info("Total number of images: {!r}".format(total_images))
 
 
@@ -255,8 +251,8 @@ def build_license(license_content: str, download_dir: str):
         license_file.write(license_content)
 
 
-def build_readme(readme_content:str, download_dir:str):
-    readme_path = os.path.join(download_dir, "README.md")      
+def build_readme(readme_content: str, download_dir: str):
+    readme_path = os.path.join(download_dir, "README.md")
     with open(readme_path, "w") as license_file:
         license_file.write(readme_content)
 
