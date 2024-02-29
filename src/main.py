@@ -1,12 +1,8 @@
 import os
-
-# from datetime import datetime
 from distutils import util
 
 import supervisely as sly
 from dotenv import load_dotenv
-
-# from supervisely.api.file_api import FileInfo
 from supervisely.api.module_api import ApiField
 from supervisely.io.fs import get_file_ext
 
@@ -91,6 +87,8 @@ def download(project: sly.Project) -> str:
     else:
         save_images = False
 
+    sly.logger.info(f"Starting download of project {project.name} to {download_dir}...")
+
     sly.Project.download(
         api,
         project_id,
@@ -101,6 +99,8 @@ def download(project: sly.Project) -> str:
         save_image_meta=True,
         save_images=save_images,
     )
+
+    sly.logger.info("Project downloaded...")
     return download_dir
 
 
@@ -108,3 +108,4 @@ if __name__ == "__main__":
     project = api.project.get_info_by_id(project_id)
     download_dir = download(project)
     sly.output.set_download(download_dir)
+    sly.logger.info("Archive uploaded and ready for download.")
