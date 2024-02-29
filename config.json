@@ -1,6 +1,7 @@
 {
     "name": "Export to Supervisely format",
     "type": "app",
+    "version": "2.0.0",
     "categories": [
         "images",
         "export"

@@ -1,12 +1,11 @@
 import os
+from datetime import datetime
 from distutils import util
 
-from dotenv import load_dotenv
-
-import sly_functions as f
 import supervisely as sly
+from dotenv import load_dotenv
+from supervisely.api.file_api import FileInfo
 from supervisely.api.module_api import ApiField
-from supervisely.app.v1.app_service import AppService
 from supervisely.io.fs import get_file_ext
 
 if sly.is_development():
@@ -14,18 +13,23 @@ if sly.is_development():
     load_dotenv(os.path.expanduser("~/supervisely.env"))
 
 api = sly.Api.from_env()
-my_app = AppService()
 
-TEAM_ID = int(os.environ["context.teamId"])
-WORKSPACE_ID = int(os.environ["context.workspaceId"])
-PROJECT_ID = int(os.environ["modal.state.slyProjectId"])
-DATASET_ID = os.environ.get("modal.state.slyDatasetId", None)
-if DATASET_ID is not None:
-    DATASET_ID = int(DATASET_ID)
-task_id = int(os.environ["TASK_ID"])
-mode = os.environ["modal.state.download"]
-replace_method = bool(util.strtobool(os.environ["modal.state.fixExtension"]))
+# region constants
+parent_dir = os.path.dirname(os.path.abspath(__file__))
+data_dir = os.path.join(parent_dir, "data")
 batch_size = 10
+# endregion
+# region envvars
+team_id = sly.env.team_id()
+project_id = sly.env.project_id()
+dataset_id = sly.env.dataset_id(raise_not_found=False)
+mode = os.environ.get("modal.state.download", "all")
+replace_method = bool(util.strtobool(os.environ.get("modal.state.fixExtension", "false")))
+# endregion
+sly.logger.info(
+    f"Team: {team_id}, Project: {project_id}, Dataset: {dataset_id}, Mode: {mode}, "
+    f"Fix extension: {replace_method}"
+)
 
 
 def ours_convert_json_info(self, info: dict, skip_missing=True):
@@ -58,145 +62,69 @@ def ours_convert_json_info(self, info: dict, skip_missing=True):
     return self.InfoType(*field_values)
 
 
-def init(data, state):
-    state["download"] = mode
-    state["fixExtension"] = replace_method
-
-
 if replace_method:
-    sly.logger.debug("change SDK method")
+    sly.logger.debug("Fix image extension method is enabled")
     sly.api.image_api.ImageApi._convert_json_info = ours_convert_json_info
 
 
-@my_app.callback("download_as_sly")
-@sly.timeit
-def download_as_sly(api: sly.Api, task_id, context, state, app_logger):
-    global TEAM_ID, PROJECT_ID, DATASET_ID, mode
-    project = api.project.get_info_by_id(PROJECT_ID)
-    if project is None:
-        raise Exception(f"Project with ID {PROJECT_ID} not found in your account")
-    if DATASET_ID is not None:
-        dataset_ids = [DATASET_ID]
-        dataset = api.dataset.get_info_by_id(DATASET_ID)
-        if dataset is None:
-            raise Exception(f"Dataset with ID {DATASET_ID} not found in your account")
+def download(project: sly.Project) -> str:
+    """Downloads the project and returns the path to the downloaded directory.
+
+    :param project: The project to download
+    :type project: sly.Project
+    :return: The path to the downloaded directory
+    :rtype: str
+    """
+    download_dir = os.path.join(data_dir, f"{project.id}_{project.name}")
+    sly.fs.mkdir(download_dir, remove_content_if_exists=True)
+
+    if dataset_id is not None:
+        dataset_ids = [dataset_id]
     else:
-        try:
-            datasets = api.dataset.get_list(project.id)
-        except Exception as e:
-            raise Exception(f"Failed to get list of datasets from project ID:{project.id}. {e}")
+        datasets = api.dataset.get_list(project.id, recursive=True)
         dataset_ids = [dataset.id for dataset in datasets]
+
     if mode == "all":
-        download_json_plus_images(api, project, dataset_ids)
+        save_images = True
     else:
-        download_only_json(api, project, dataset_ids)
+        save_images = False
 
-    download_dir = os.path.join(my_app.data_dir, f"{project.id}_{project.name}")
-    full_archive_name = str(project.id) + "_" + project.name + ".tar"
-    result_archive = os.path.join(my_app.data_dir, full_archive_name)
-    sly.fs.archive_directory(download_dir, result_archive)
-    app_logger.info("Result directory is archived")
-    upload_progress = []
-    remote_archive_path = os.path.join(
-        sly.team_files.RECOMMENDED_EXPORT_PATH,
-        "export-to-supervisely-format/{}_{}".format(task_id, full_archive_name),
-    )
-
-    def _print_progress(monitor, upload_progress):
-        if len(upload_progress) == 0:
-            upload_progress.append(
-                sly.Progress(
-                    message="Upload {!r}".format(full_archive_name),
-                    total_cnt=monitor.len,
-                    ext_logger=app_logger,
-                    is_size=True,
-                )
-            )
-        upload_progress[0].set_current_value(monitor.bytes_read)
-
-    file_info = api.file.upload(
-        TEAM_ID, result_archive, remote_archive_path, lambda m: _print_progress(m, upload_progress)
-    )
-    app_logger.info("Uploaded to Team-Files: {!r}".format(file_info.path))
-    api.task.set_output_archive(
-        task_id, file_info.id, full_archive_name, file_url=file_info.storage_path
-    )
-    my_app.stop()
-
-
-def download_json_plus_images(api, project, dataset_ids):
-    sly.logger.info("DOWNLOAD_PROJECT", extra={"title": project.name})
-    download_dir = os.path.join(my_app.data_dir, f"{project.id}_{project.name}")
-    if os.path.exists(download_dir):
-        sly.fs.clean_dir(download_dir)
-    f.download_project(
+    sly.Project.download(
         api,
-        project.id,
-        download_dir,
+        project_id,
+        dest_dir=download_dir,
         dataset_ids=dataset_ids,
         log_progress=True,
         batch_size=batch_size,
         save_image_meta=True,
+        save_images=save_images,
     )
-    sly.logger.info("Project {!r} has been successfully downloaded.".format(project.name))
+    return download_dir
 
 
-def download_only_json(api, project, dataset_ids):
-    sly.logger.info("DOWNLOAD_PROJECT", extra={"title": project.name})
-    download_dir = os.path.join(my_app.data_dir, f"{project.id}_{project.name}")
-    sly.fs.mkdir(download_dir)
-    meta_json = api.project.get_meta(project.id, with_settings=True)
-    sly.io.json.dump_json_file(meta_json, os.path.join(download_dir, "meta.json"))
+def archive_and_upload(download_dir: str, project: sly.Project) -> FileInfo:
+    """Archives the downloaded directory and uploads it to the team files.
 
-    total_images = 0
-    dataset_info = (
-        [api.dataset.get_info_by_id(ds_id) for ds_id in dataset_ids]
-        if (dataset_ids is not None)
-        else api.dataset.get_list(project.id)
-    )
+    :param download_dir: The path to the downloaded directory
+    :type download_dir: str
+    :param project: The project that was downloaded
+    :type project: sly.Project
+    """
+    archive_name = str(project.id) + "_" + project.name + ".tar"
+    archive_path = os.path.join(data_dir, archive_name)
+    sly.fs.archive_directory(download_dir, archive_path)
 
-    for dataset in dataset_info:
-        ann_dir = os.path.join(download_dir, dataset.name, "ann")
-        sly.fs.mkdir(ann_dir)
+    timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
 
-        images = api.image.get_list(dataset.id)
-        ds_progress = sly.Progress(
-            "Downloading annotations for: {!r}/{!r}".format(project.name, dataset.name),
-            total_cnt=len(images),
-        )
-        for batch in sly.batched(images, batch_size=10):
-            image_ids = [image_info.id for image_info in batch]
-            image_names = [image_info.name for image_info in batch]
-
-            # download annotations in json format
-            ann_infos = api.annotation.download_batch(dataset.id, image_ids)
-
-            for image_name, ann_info in zip(image_names, ann_infos):
-                sly.io.json.dump_json_file(
-                    ann_info.annotation, os.path.join(ann_dir, image_name + ".json")
-                )
-            ds_progress.iters_done_report(len(batch))
-            total_images += len(batch)
-
-    sly.logger.info("Project {!r} has been successfully downloaded".format(project.name))
-    sly.logger.info("Total number of images: {!r}".format(total_images))
-
-
-def main():
-    sly.logger.info(
-        "Script arguments",
-        extra={
-            "TEAM_ID": TEAM_ID,
-            "WORKSPACE_ID": WORKSPACE_ID,
-            "PROJECT_ID": PROJECT_ID,
-        },
+    remote_archive_path = os.path.join(
+        sly.team_files.RECOMMENDED_EXPORT_PATH,
+        "export-to-supervisely-format/{}_{}".format(timestamp, archive_name),
     )
 
-    data = {}
-    state = {}
-    init(data, state)
-    my_app.run(initial_events=[{"command": "download_as_sly"}])
+    return api.file.upload(team_id, archive_path, remote_archive_path)
 
 
 if __name__ == "__main__":
-    sly.main_wrapper("main", main, log_for_agent=False)
+    project = api.project.get_info_by_id(project_id)
+    download_dir = download(project)
+    file_info = archive_and_upload(download_dir, project)
