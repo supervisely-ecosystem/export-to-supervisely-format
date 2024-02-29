@@ -1,10 +1,12 @@
 import os
-from datetime import datetime
+
+# from datetime import datetime
 from distutils import util
 
 import supervisely as sly
 from dotenv import load_dotenv
-from supervisely.api.file_api import FileInfo
+
+# from supervisely.api.file_api import FileInfo
 from supervisely.api.module_api import ApiField
 from supervisely.io.fs import get_file_ext
 
@@ -102,29 +104,7 @@ def download(project: sly.Project) -> str:
     return download_dir
 
 
-def archive_and_upload(download_dir: str, project: sly.Project) -> FileInfo:
-    """Archives the downloaded directory and uploads it to the team files.
-
-    :param download_dir: The path to the downloaded directory
-    :type download_dir: str
-    :param project: The project that was downloaded
-    :type project: sly.Project
-    """
-    archive_name = str(project.id) + "_" + project.name + ".tar"
-    archive_path = os.path.join(data_dir, archive_name)
-    sly.fs.archive_directory(download_dir, archive_path)
-
-    timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-
-    remote_archive_path = os.path.join(
-        sly.team_files.RECOMMENDED_EXPORT_PATH,
-        "export-to-supervisely-format/{}_{}".format(timestamp, archive_name),
-    )
-
-    return api.file.upload(team_id, archive_path, remote_archive_path)
-
-
 if __name__ == "__main__":
     project = api.project.get_info_by_id(project_id)
     download_dir = download(project)
-    file_info = archive_and_upload(download_dir, project)
+    sly.output.set_download(download_dir)
