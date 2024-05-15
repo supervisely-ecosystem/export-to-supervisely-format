@@ -1,1 +1,1 @@
-supervisely==6.72.231
+git+https://github.com/supervisely/supervisely.git@new-shape-class
