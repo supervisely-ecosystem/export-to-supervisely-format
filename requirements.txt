@@ -1,0 +1,2 @@
+# supervisely==6.73.93
+git+https://github.com/supervisely/supervisely.git@labeling-interface-to-project-settings
