@@ -109,3 +109,6 @@ if __name__ == "__main__":
     download_dir = download(project)
     sly.output.set_download(download_dir)
     sly.logger.info("Archive uploaded and ready for download.")
+    api.app.add_input_project(project)
+    file_id = api.file.get_info_by_path(download_dir).id
+    api.app.add_output_file(file_id)
