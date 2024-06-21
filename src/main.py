@@ -107,8 +107,7 @@ def download(project: sly.Project) -> str:
 if __name__ == "__main__":
     project = api.project.get_info_by_id(project_id)
     download_dir = download(project)
-    sly.output.set_download(download_dir)
+    file_info = sly.output.set_download(download_dir)
     sly.logger.info("Archive uploaded and ready for download.")
     api.app.add_input_project(project)
-    file_id = api.file.get_info_by_path(project.team_id, download_dir).id
-    api.app.add_output_file(file_id)
+    api.app.add_output_file(file_info.id)
