@@ -14,7 +14,7 @@ def workflow_output(api: sly.Api, file: Union[int, sly.api.file_api.FileInfo]):
     try:
         if isinstance(file, int):
             file = api.file.get_info_by_id(file)
-        relation_settings = sly.app.WorkflowSettings(
+        relation_settings = sly.WorkflowSettings(
             title=file.name,
             icon="archive",
             color="#33c94c",
@@ -22,7 +22,7 @@ def workflow_output(api: sly.Api, file: Union[int, sly.api.file_api.FileInfo]):
             url=f"/files/{file.id}/true/?teamId={file.team_id}",
             url_title="Download",
         )
-        meta = sly.app.WorkflowMeta.create_as_dict(relation_settings=relation_settings)
+        meta = sly.WorkflowMeta.create_as_dict(relation_settings=relation_settings)
         api.app.workflow.add_output_file(file, meta=meta)
         sly.logger.debug(f"Workflow: Output file - {file}")
     except Exception as e:
