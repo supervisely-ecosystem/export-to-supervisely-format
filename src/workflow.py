@@ -17,8 +17,8 @@ def workflow_output(api: sly.Api, file: Union[int, sly.api.file_api.FileInfo]):
         relation_settings = sly.WorkflowSettings(
             title=file.name,
             icon="archive",
-            color="#33c94c",
-            background_color="#d9f7e4",
+            icon_color="#33c94c",
+            icon_bg_color="#d9f7e4",
             url=f"/files/{file.id}/true/?teamId={file.team_id}",
             url_title="Download",
         )
