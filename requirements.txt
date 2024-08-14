@@ -1,3 +1,0 @@
-# supervisely==6.73.128
-
-git+https://github.com/supervisely/supervisely.git@add-workflow-compatibility-check
