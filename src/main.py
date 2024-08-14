@@ -6,6 +6,8 @@ from dotenv import load_dotenv
 from supervisely.api.module_api import ApiField
 from supervisely.io.fs import get_file_ext
 
+import workflow as w
+
 if sly.is_development():
     load_dotenv("local.env")
     load_dotenv(os.path.expanduser("~/supervisely.env"))
@@ -107,5 +109,7 @@ def download(project: sly.Project) -> str:
 if __name__ == "__main__":
     project = api.project.get_info_by_id(project_id)
     download_dir = download(project)
-    sly.output.set_download(download_dir)
+    w.workflow_input(api, project.id)
+    file_info = sly.output.set_download(download_dir)
+    w.workflow_output(api, file_info)
     sly.logger.info("Archive uploaded and ready for download.")
