@@ -2,10 +2,13 @@
   "name": "Export to Supervisely format",
   "type": "app",
   "version": "2.0.0",
-  "categories": ["images", "export"],
+  "categories": [
+    "images",
+    "export"
+  ],
   "description": "images and JSON annotations",
-  "docker_image": "supervisely/import-export:6.73.156",
-  "instance_version": "6.10.0",
+  "docker_image": "supervisely/import-export:6.73.160",
+  "instance_version": "6.11.8",
   "main_script": "src/main.py",
   "modal_template": "src/modal.html",
   "modal_template_state": {
@@ -18,7 +21,10 @@
   "icon": "https://i.imgur.com/1hqGMyg.png",
   "icon_background": "#FFFFFF",
   "context_menu": {
-    "target": ["images_project", "images_dataset"],
+    "target": [
+      "images_project",
+      "images_dataset"
+    ],
     "context_root": "Download as"
   },
   "poster": "https://user-images.githubusercontent.com/106374579/186665737-ec3da9cc-193f-43ee-85db-a6f802b2dfe4.png"
