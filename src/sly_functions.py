@@ -26,22 +26,23 @@ CUBOID_POINTS = [
 ]
 
 # cuboid edges
-CUBOID_LINE_INDICES = [
-    (0, 1),
-    (0, 2),
-    (0, 4),
-    (1, 3),
-    (1, 5),
-    (2, 3),
-    (2, 6),
-    (3, 7),
-    (4, 5),
-    (4, 6),
-    (5, 7),
-    (6, 7),
+CUBOID_LINE_INDICES = {
+    "face2-bottomright-face2-topright": (0, 1),
+    "face2-bottomright-face2-bottomleft": (0, 2),
+    "face2-bottomright-face1-bottomright": (0, 4),
+    "face2-topright-face2-topleft": (1, 3),
+    "face2-topright-face1-topright": (1, 5),
+    "face2-bottomleft-face2-topleft": (2, 3),
+    "face2-bottomleft-face1-bottomleft": (2, 6),
+    "face2-topleft-face1-topleft": (3, 7),
+    "face1-bottomright-face1-topright": (4, 5),
+    "face1-bottomright-face1-bottomleft": (4, 6),
+    "face1-topright-face1-topleft": (5, 7),
+    "face1-bottomleft-face1-topleft": (6, 7),
+
     # (0, 3),  # X at the back
     # (1, 2),  # X at the back
-]
+}
 
 
 # class PILImageDraw:
@@ -232,7 +233,7 @@ def object_img_linestrings(
         2,
     ), f"points shape should be {(NUM_PTS, 2)}, but it's {points.shape}"
 
-    idx = np.array(indices)
+    idx = np.array(list(indices.values()))
     start_pts = points[idx[:, 0]]
     end_pts = points[idx[:, 1]]
 
@@ -247,7 +248,8 @@ def object_img_linestrings(
         project_3d_to_2d(ls_cam[masks[lidx]].reshape(-1, 3), cam_intrinsics)
         for lidx, ls_cam in enumerate(line_strings_cam)
     ]
-    return linestrings
+    res = {edge: linestring.tolist() for edge, linestring in zip(indices.keys(), linestrings)}
+    return res
 
 
 # img_name = "Left_cyl.png"
@@ -264,23 +266,19 @@ def object_img_linestrings(
 
 
 def get_k_intrinsics_from_meta(meta):
-    # if "calibration" not in meta:
-    #     raise ValueError("No calibration in meta")
-    # calibration = meta["calibration"]
-    # if "intrinsic" not in calibration:
-    #     raise ValueError("No intrinsic in calibration")
-    # instrinsics = calibration["intrinsic"]
-    for key in ["focalLengthX", "focalLengthY", "prinAxisX", "prinAxisY"]:
-        if key not in meta:
-            raise ValueError(f"Not found '{key}' field in instrinsics")
-    K_intrinsics = np.asarray(
-        [
-            [meta["focalLengthX"], 0.0, meta["prinAxisX"]],
-            [0.0, meta["focalLengthY"], meta["prinAxisY"]],
-            [0.0, 0.0, 1.0],
-        ]
-    )
-    return K_intrinsics
+    if "calibration" not in meta:
+        raise ValueError("Not found 'calibration' field in image meta")
+    calibration = meta["calibration"]
+    if "intrinsic" not in calibration:
+        raise ValueError("Not found 'intrinsic' field in calibration")
+    instrinsics = calibration["intrinsic"]
+    fx = instrinsics.get("fx", instrinsics.get("focalLengthX"))
+    fy = instrinsics.get("fy", instrinsics.get("focalLengthY"))
+    cx = instrinsics.get("cx", instrinsics.get("prinAxisX"))
+    cy = instrinsics.get("cy", instrinsics.get("prinAxisY"))
+    if any(val is None for val in (fx, fy, cx, cy)):
+        raise ValueError(f"Missing values in instrinsics: {instrinsics}")
+    return np.asarray([[fx, 0.0, cx], [0.0, fy, cy], [0.0, 0.0, 1.0]])
 
 
 def get_linestrings_from_label(label, K_intrinsics):
@@ -323,7 +321,7 @@ def get_linestrings_from_label(label, K_intrinsics):
     )
 
     linestrings = object_img_linestrings(points, CUBOID_LINE_INDICES, K_intrinsics)
-    return [ls.tolist() for ls in linestrings]
+    return linestrings
 
 
 # with PILImageDraw(cylindrical_image) as img_draw:
