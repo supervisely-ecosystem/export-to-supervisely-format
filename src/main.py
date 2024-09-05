@@ -68,8 +68,8 @@ if replace_method:
     sly.api.image_api.ImageApi._convert_json_info = ours_convert_json_info
 
 
-def add_additional_field_for_cuboid(project: sly.Project):
-
+def add_additional_field_for_cuboid(project_dir: str):
+    project = sly.Project(project_dir, sly.OpenMode.READ)
     progress = sly.Progress("Adding additional field for cuboid", project.total_items)
     for dataset in project:
         dataset: sly.Dataset
@@ -128,11 +128,11 @@ def download(project: sly.Project) -> str:
         save_image_meta=True,
         save_images=save_images,
     )
-    project = sly.Project(download_dir, sly.OpenMode.READ)
-    meta = project.meta
+    meta_path = os.path.join(download_dir, "meta.json")
+    meta = sly.ProjectMeta.from_json(sly.json.load_json_file(meta_path))
     if any(obj_cls.geometry_type == sly.Cuboid2d for obj_cls in meta.obj_classes):
         try:
-            add_additional_field_for_cuboid(project)
+            add_additional_field_for_cuboid(download_dir)
         except Exception as e:
             sly.logger.error(f"Error while adding additional field for 2D cuboid: {e}")
 
