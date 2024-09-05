@@ -6,6 +6,7 @@ from dotenv import load_dotenv
 from supervisely.api.module_api import ApiField
 from supervisely.io.fs import get_file_ext
 
+import sly_functions as f
 import workflow as w
 
 if sly.is_development():
@@ -67,6 +68,32 @@ if replace_method:
     sly.api.image_api.ImageApi._convert_json_info = ours_convert_json_info
 
 
+def add_additional_field_for_cuboid(project_dir: str):
+    project = sly.Project(project_dir, sly.OpenMode.READ)
+    progress = sly.Progress("Adding additional field for cuboid", project.total_items)
+    for dataset in project:
+        dataset: sly.Dataset
+
+        names = dataset.get_items_names()
+        for name in names:
+            changed = False
+            ann_path = dataset.get_ann_path(name)
+            meta_path = dataset.get_item_meta_path(name)
+
+            ann_json = sly.json.load_json_file(ann_path)
+            for label in ann_json["objects"]:
+                if label["geometryType"] == sly.Cuboid2d.geometry_name():
+                    image_meta = sly.json.load_json_file(meta_path)
+                    K_instrinsics = f.get_k_intrinsics_from_meta(image_meta)
+                    linestrings = f.get_linestrings_from_label(label, K_instrinsics)
+                    label["_curved_cylindrical_edges"] = linestrings
+                    changed = True
+
+            if changed:
+                sly.json.dump_json_file(ann_json, ann_path)
+            progress.iter_done_report()
+
+
 def download(project: sly.Project) -> str:
     """Downloads the project and returns the path to the downloaded directory.
 
@@ -101,6 +128,13 @@ def download(project: sly.Project) -> str:
         save_image_meta=True,
         save_images=save_images,
     )
+    meta_path = os.path.join(download_dir, "meta.json")
+    meta = sly.ProjectMeta.from_json(sly.json.load_json_file(meta_path))
+    if any(obj_cls.geometry_type == sly.Cuboid2d for obj_cls in meta.obj_classes):
+        try:
+            add_additional_field_for_cuboid(download_dir)
+        except Exception as e:
+            sly.logger.error(f"Error while adding additional field for 2D cuboid: {e}")
 
     sly.logger.info("Project downloaded...")
     return download_dir
