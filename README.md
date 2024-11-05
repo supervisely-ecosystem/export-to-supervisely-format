@@ -8,11 +8,11 @@
   <a href="#How-To-Use">How To Use</a>
 </p>
 
-[![](https://img.shields.io/badge/supervisely-ecosystem-brightgreen)](https://ecosystem.supervise.ly/apps/supervisely-ecosystem/export-to-supervisely-format)
-[![](https://img.shields.io/badge/slack-chat-green.svg?logo=slack)](https://supervise.ly/slack)
+[![](https://img.shields.io/badge/supervisely-ecosystem-brightgreen)](https://ecosystem.supervisely.com/apps/supervisely-ecosystem/export-to-supervisely-format)
+[![](https://img.shields.io/badge/slack-chat-green.svg?logo=slack)](https://supervisely.com/slack)
 ![GitHub release (latest SemVer)](https://img.shields.io/github/v/release/supervisely-ecosystem/export-to-supervisely-format)
-[![views](https://app.supervise.ly/img/badges/views/supervisely-ecosystem/export-to-supervisely-format.png)](https://supervise.ly)
-[![runs](https://app.supervise.ly/img/badges/runs/supervisely-ecosystem/export-to-supervisely-format.png)](https://supervise.ly)
+[![views](https://app.supervisely.com/img/badges/views/supervisely-ecosystem/export-to-supervisely-format.png)](https://supervisely.com)
+[![runs](https://app.supervisely.com/img/badges/runs/supervisely-ecosystem/export-to-supervisely-format.png)](https://supervisely.com)
 
 </div>
 
@@ -20,11 +20,11 @@
 
 ℹ️ Starting from version 2.7.7 the application will save images metadata in JSON format to `meta` directory in each dataset.
 
-Download images project or dataset in [Supervisely JSON format](https://docs.supervise.ly/data-organization/00_ann_format_navi). It is possible to download both images and annotations or only annotations.
+Download images project or dataset in [Supervisely JSON format](https://docs.supervisely.com/data-organization/00_ann_format_navi). It is possible to download both images and annotations or only annotations.
 
 # How To Use
 
-**Step 1**: Add app to your team from [Ecosystem](https://ecosystem.supervise.ly/apps/export-to-supervisely-format) if it is not there
+**Step 1**: Add app to your team from [Ecosystem](https://ecosystem.supervisely.com/apps/export-to-supervisely-format) if it is not there
 
 **Step 2**: Open context menu of images project (or images dataset) -> `Run App` -> `Download via app` -> `Export to Supervisely format`
 
