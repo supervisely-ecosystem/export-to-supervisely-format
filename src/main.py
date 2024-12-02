@@ -107,6 +107,9 @@ def download(project: sly.Project) -> str:
 
     if dataset_id is not None:
         dataset_ids = [dataset_id]
+        nested_datasets = api.dataset.get_nested(project.id, dataset_id)
+        nested_dataset_ids = [dataset.id for dataset in nested_datasets]
+        dataset_ids.extend(nested_dataset_ids)
     else:
         datasets = api.dataset.get_list(project.id, recursive=True)
         dataset_ids = [dataset.id for dataset in datasets]
