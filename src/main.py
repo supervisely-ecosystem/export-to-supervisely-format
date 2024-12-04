@@ -1,4 +1,3 @@
-import asyncio
 import os
 from distutils import util
 
@@ -122,24 +121,16 @@ def download(project: sly.Project) -> str:
 
     sly.logger.info(f"Starting download of project {project.name} to {download_dir}...")
 
-    loop = sly.fs.get_or_create_event_loop()
-    coro = sly.Project.download_async(
+    sly.Project.download(
         api,
         project_id,
         dest_dir=download_dir,
         dataset_ids=dataset_ids,
         log_progress=True,
+        batch_size=batch_size,
         save_image_meta=True,
         save_images=save_images,
     )
-    if loop.is_running():
-        sly.logger.debug("Loop is already running, using run_coroutine_threadsafe")
-        future = asyncio.run_coroutine_threadsafe(coro, loop)
-        future.result()
-    else:
-        sly.logger.debug("Loop is not running, using run_until_complete")
-        loop.run_until_complete(coro)
-
     meta_path = os.path.join(download_dir, "meta.json")
     meta = sly.ProjectMeta.from_json(sly.json.load_json_file(meta_path))
     if any(obj_cls.geometry_type == sly.Cuboid2d for obj_cls in meta.obj_classes):
