@@ -1,6 +1,7 @@
 import os
 from distutils import util
 
+from supervisely.project.download import download_async_or_sync
 import supervisely as sly
 from dotenv import load_dotenv
 from supervisely.api.module_api import ApiField
@@ -121,16 +122,16 @@ def download(project: sly.Project) -> str:
 
     sly.logger.info(f"Starting download of project {project.name} to {download_dir}...")
 
-    sly.Project.download(
+    download_async_or_sync(
         api,
         project_id,
         dest_dir=download_dir,
         dataset_ids=dataset_ids,
         log_progress=True,
-        batch_size=batch_size,
         save_image_meta=True,
         save_images=save_images,
     )
+
     meta_path = os.path.join(download_dir, "meta.json")
     meta = sly.ProjectMeta.from_json(sly.json.load_json_file(meta_path))
     if any(obj_cls.geometry_type == sly.Cuboid2d for obj_cls in meta.obj_classes):
