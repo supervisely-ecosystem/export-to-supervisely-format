@@ -4,8 +4,8 @@
 	"version": "2.0.0",
 	"categories": ["images", "export"],
 	"description": "images and JSON annotations",
-	"docker_image": "supervisely/import-export:6.73.273",
-	"instance_version": "6.12.17",
+	"docker_image": "supervisely/import-export:6.73.282",
+	"instance_version": "6.12.23",
 	"main_script": "src/main.py",
 	"modal_template": "src/modal.html",
 	"modal_template_state": {

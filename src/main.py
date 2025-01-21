@@ -130,6 +130,7 @@ def download(project: sly.Project) -> str:
         log_progress=True,
         save_image_meta=True,
         save_images=save_images,
+        save_image_info=True,
     )
 
     meta_path = os.path.join(download_dir, "meta.json")
