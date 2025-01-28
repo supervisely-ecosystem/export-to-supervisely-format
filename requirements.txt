@@ -1,0 +1,1 @@
+git+https://github.com/supervisely/supervisely.git@graph_wo_nodes_fix
