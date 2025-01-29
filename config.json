@@ -1,5 +1,5 @@
 {
-	"name": "Export to Supervisely format",
+	"name": "Export to Supervisely Format",
 	"type": "app",
 	"version": "2.0.0",
 	"categories": ["images", "export"],
