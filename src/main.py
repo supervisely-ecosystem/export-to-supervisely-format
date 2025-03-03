@@ -1,11 +1,11 @@
 import os
 from distutils import util
 
-from supervisely.project.download import download_async_or_sync
 import supervisely as sly
 from dotenv import load_dotenv
 from supervisely.api.module_api import ApiField
 from supervisely.io.fs import get_file_ext
+from supervisely.project.download import download_async_or_sync
 
 import sly_functions as f
 import workflow as w
@@ -105,6 +105,8 @@ def download(project: sly.Project) -> str:
     """
     download_dir = os.path.join(data_dir, f"{project.id}_{project.name}")
     sly.fs.mkdir(download_dir, remove_content_if_exists=True)
+
+    f.project_meta_deserialization_check(api, project)
 
     if dataset_id is not None:
         dataset_ids = [dataset_id]

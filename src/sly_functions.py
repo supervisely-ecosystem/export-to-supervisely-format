@@ -4,6 +4,7 @@ from typing import List, Optional, Tuple
 import cv2
 import numpy as np
 import numpy.linalg as la
+import supervisely as sly
 
 # from PIL import Image, ImageDraw
 
@@ -39,7 +40,6 @@ CUBOID_LINE_INDICES = {
     "face1-bottomright-face1-bottomleft": (4, 6),
     "face1-topright-face1-topleft": (5, 7),
     "face1-bottomleft-face1-topleft": (6, 7),
-
     # (0, 3),  # X at the back
     # (1, 2),  # X at the back
 }
@@ -333,3 +333,34 @@ def get_linestrings_from_label(label, K_intrinsics):
 # cv2.imwrite(
 #     f"/data/cylindrical/{img_name}_drawn.png", cv2.cvtColor(cylindrical_image, cv2.COLOR_RGB2BGR)
 # )
+
+
+def project_meta_deserialization_check(api: sly.Api, project: sly.ProjectInfo) -> None:
+    from supervisely.project.project_meta import ProjectMetaJsonFields
+    from supervisely.project.project_settings import ProjectSettingsJsonFields
+
+    meta_json = api.project.get_meta(project.id, with_settings=True)
+    try:
+        meta = sly.ProjectMeta.from_json(meta_json)
+    except Exception as e:
+        sly.logger.warning(f"Error while getting project meta: {repr(e)}")
+        sly.logger.info("Trying to fix project meta...")
+
+        settings = meta_json.get(ProjectMetaJsonFields.PROJECT_SETTINGS)
+        if settings is not None:
+            multi_view = settings.get(ProjectSettingsJsonFields.MULTI_VIEW)
+            if multi_view.get(ProjectSettingsJsonFields.ENABLED) is True:
+                # try to fix the project settings by disabling the multi-view
+                multi_view[ProjectSettingsJsonFields.ENABLED] = False
+                try:
+                    meta = sly.ProjectMeta.from_json(meta_json)
+                    api.project.update_meta(project.id, meta)
+                    return
+                except Exception as e:
+                    pass
+
+        # try to fix the project meta by removing the project settings
+        sly.logger.info("Trying to get project meta without settings...")
+        meta_json = api.project.get_meta(project.id)
+        meta = sly.ProjectMeta.from_json(meta_json)
+        api.project.update_meta(project.id, meta)
