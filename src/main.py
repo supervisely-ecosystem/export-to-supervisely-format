@@ -8,7 +8,10 @@ from supervisely.io.fs import get_file_ext
 from supervisely.project.download import download_async_or_sync
 
 import sly_functions as f
+from sly_functions import CylindricalProjection
 import workflow as w
+from pathlib import Path
+from copy import deepcopy
 
 if sly.is_development():
     load_dotenv("local.env")
@@ -142,6 +145,37 @@ def download(project: sly.Project) -> str:
             add_additional_field_for_cuboid(download_dir)
         except Exception as e:
             sly.logger.error(f"Error while adding additional field for 2D cuboid: {e}")
+
+    sly.logger.info("Interpolating points for cylindrical projection...")
+    for path in os.listdir(download_dir):
+        p = Path(path)
+        if p.is_dir() and os.path.exists(os.path.join(path, "meta")):
+            for image_meta_file in os.listdir(path):
+                ann_path = p.with_name("ann").joinpath(image_meta_file)
+                image_meta = sly.json.load_json_file(image_meta_file)
+                if "calibration" in image_meta:
+                    polygons_interpolated = False
+                    projection = CylindricalProjection(image_meta)
+                    ann_json = sly.json.load_json_file(ann_path)
+                    objects = []
+                    for label in ann_json["objects"]:
+                        if label["geometryType"] == sly.Polygon.geometry_name():
+                            new_label = deepcopy(label)
+                            new_ext = projection.interpolate_points_cylindrical(label["points"]["exterior"]) 
+                            new_int = []
+                            for subfig in label['points']['interior']:
+                                new_int.append(projection.interpolate_points_cylindrical(subfig))
+
+                            new_label['points']['exterior'] = new_ext
+                            new_label['points']['interior'] = new_int
+                            label = new_label
+                            polygons_interpolated = True
+                        objects.append(label)
+
+                    if polygons_interpolated:
+                        ann_json["objects"] = objects
+                        sly.json.dump_json_file(ann_json, ann_path)
+                        sly.logger.debug("Overwriting ann file with interpolated points")
 
     sly.logger.info("Project downloaded...")
     return download_dir

@@ -5,6 +5,7 @@ import cv2
 import numpy as np
 import numpy.linalg as la
 import supervisely as sly
+import math
 
 # from PIL import Image, ImageDraw
 
@@ -364,3 +365,70 @@ def project_meta_deserialization_check(api: sly.Api, project: sly.ProjectInfo) -
         meta_json = api.project.get_meta(project.id)
         meta = sly.ProjectMeta.from_json(meta_json)
         api.project.update_meta(project.id, meta)
+
+class CylindricalProjection:
+    def __init__(self, meta):
+        self.intrinsic = meta["calibration"]["intrinsic"]
+
+    def project2d_to_3d_cyl(self, pos):
+        x, y = pos['x'], pos['y']
+        theta = (x - self.intrinsic['cx']) / self.intrinsic['fx']
+        h = (y - self.intrinsic['cy']) / self.intrinsic['fy']
+        point3d = np.array([math.cos(theta), h, math.sin(theta)])
+        return point3d
+    
+    def project3d_to_2d_cyl(self, point3d):
+        theta = math.atan2(point3d[2], point3d[0])
+        h = point3d[1]
+        x = theta * self.intrinsic['fx'] + self.intrinsic['cx']
+        y = h * self.intrinsic['fy'] + self.intrinsic['cy']
+        return (x, y)
+    
+    @staticmethod
+    def interpolate_line_segments_on_cylinder(pt1, pt2, segments=10):
+        # Linearly interpolate between two points on the cylinder in terms of theta and height.
+        theta1 = math.atan2(pt1[2], pt1[0])
+        h1 = pt1[1]
+        theta2 = math.atan2(pt2[2], pt2[0])
+        h2 = pt2[1]
+        
+        # Adjust for the wrap-around of theta.
+        dtheta = theta2 - theta1
+        if dtheta > math.pi:
+            dtheta -= 2 * math.pi
+        elif dtheta < -math.pi:
+            dtheta += 2 * math.pi
+        
+        interpolated_points = []
+        for i in range(segments):
+            t = i / (segments - 1)
+            theta = theta1 + t * dtheta
+            h = h1 + t * (h2 - h1)
+            interpolated_points.append(np.array([math.cos(theta), h, math.sin(theta)]))
+        return interpolated_points
+    
+    def interpolate_points_cylindrical(self, points_arr):
+        import uuid
+
+        result = []
+        n_points = len(points_arr)
+        
+        for p_idx, cur_p in enumerate(points_arr):
+            next_p = points_arr[(p_idx + 1) % n_points]
+            
+            pt3d_1 = self.project2d_to_3d_cyl(cur_p['position'], False)
+            pt3d_2 = self.project2d_to_3d_cyl(next_p['position'], False)
+            
+            line_segments = self.interpolate_line_segments_on_cylinder(pt3d_1, pt3d_2, segments=10)
+            
+            for pt3d in line_segments:
+                pt2d = self.project3d_to_2d_cyl(pt3d, False)
+                result.append({
+                    'id': str(uuid.uuid4()),
+                    'position': {
+                        'x': pt2d[0],
+                        'y': pt2d[1],
+                        'z': 0
+                    }
+                })
+        return result
