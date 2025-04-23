@@ -371,7 +371,7 @@ class CylindricalProjection:
         self.intrinsic = meta["calibration"]["intrinsic"]
 
     def project2d_to_3d_cyl(self, pos):
-        x, y = pos['x'], pos['y']
+        x, y = pos
         theta = (x - self.intrinsic['cx']) / self.intrinsic['fx']
         h = (y - self.intrinsic['cy']) / self.intrinsic['fy']
         return np.array([math.cos(theta), h, math.sin(theta)])
@@ -413,8 +413,8 @@ class CylindricalProjection:
             next_p = points_arr[(p_idx + 1) % n_points]
 
             # Project the current point and the next point from 2D to 3D
-            pt3d_1 = self.project2d_to_3d_cyl(cur_p['position'])
-            pt3d_2 = self.project2d_to_3d_cyl(next_p['position'])
+            pt3d_1 = self.project2d_to_3d_cyl(cur_p)
+            pt3d_2 = self.project2d_to_3d_cyl(next_p)
 
             # Interpolate along the cylinder from pt3d_1 to pt3d_2
             line_segments = self.interpolate_line_segments_on_cylinder(pt3d_1, pt3d_2, segments=10)

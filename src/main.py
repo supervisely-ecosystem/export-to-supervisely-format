@@ -148,11 +148,14 @@ def download(project: sly.Project) -> str:
 
     sly.logger.info("Interpolating points for cylindrical projection...")
     for path in os.listdir(download_dir):
-        p = Path(path)
-        if p.is_dir() and os.path.exists(os.path.join(path, "meta")):
-            for image_meta_file in os.listdir(path):
-                ann_path = p.with_name("ann").joinpath(image_meta_file)
-                image_meta = sly.json.load_json_file(image_meta_file)
+        p = Path(os.path.join(download_dir, path))
+        meta_folder = p.joinpath("meta")
+        if p.is_dir() and os.path.exists(meta_folder):
+            for image_meta_file in os.listdir(meta_folder):
+                meta_path = meta_folder.joinpath(image_meta_file)
+                ann_path = meta_folder.with_name("ann").joinpath(image_meta_file)
+
+                image_meta = sly.json.load_json_file(meta_path)
                 if "calibration" in image_meta:
                     polygons_interpolated = False
                     projection = CylindricalProjection(image_meta)
