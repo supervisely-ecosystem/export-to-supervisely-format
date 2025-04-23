@@ -366,68 +366,77 @@ def project_meta_deserialization_check(api: sly.Api, project: sly.ProjectInfo) -
         meta = sly.ProjectMeta.from_json(meta_json)
         api.project.update_meta(project.id, meta)
 
-class CylindricalProjection:
-    def __init__(self, meta):
-        self.intrinsic = meta["calibration"]["intrinsic"]
 
-    def project2d_to_3d_cyl(self, pos):
-        x, y = pos
-        theta = (x - self.intrinsic['cx']) / self.intrinsic['fx']
-        h = (y - self.intrinsic['cy']) / self.intrinsic['fy']
-        return np.array([math.cos(theta), h, math.sin(theta)])
+def get_polygon_linestrings(polygon: dict, K_intrinsics, dtheta_deg: float = 5.0) -> dict:
+    """Creates interpolated linestrings from polygon geometry for cylindrical projection.
 
-    def project3d_to_2d_cyl(self, point3d):
-        theta = math.atan2(point3d[2], point3d[0])
-        h = point3d[1]
-        x = theta * self.intrinsic['fx'] + self.intrinsic['cx']
-        y = h * self.intrinsic['fy'] + self.intrinsic['cy']
-        return (x, y)
+    Args:
+        polygon (dict): Polygon geometry with exterior and interior points
+        K_intrinsics: Camera intrinsic matrix
+        dtheta_deg (float): Angular resolution in degrees
 
-    @staticmethod
-    def interpolate_line_segments_on_cylinder(pt1, pt2, segments=10):
-        theta1 = math.atan2(pt1[2], pt1[0])
-        h1 = pt1[1]
-        theta2 = math.atan2(pt2[2], pt2[0])
-        h2 = pt2[1]
+    Returns:
+        dict: Dictionary with linestrings for each polygon edge
+    """
+    linestrings = {}
 
-        dtheta = theta2 - theta1
-        if dtheta > math.pi:
-            dtheta -= 2 * math.pi
-        elif dtheta < -math.pi:
-            dtheta += 2 * math.pi
+    # Process exterior points
+    exterior_points = np.array(polygon["exterior"])
+    for i in range(len(exterior_points)):
+        start_point = exterior_points[i]
+        end_point = exterior_points[(i + 1) % len(exterior_points)]  # Loop back to first point
 
-        interpolated_points = []
-        for i in range(segments):
-            t = i / (segments - 1)
-            theta = theta1 + t * dtheta
-            h = h1 + t * (h2 - h1)
-            interpolated_points.append(np.array([math.cos(theta), h, math.sin(theta)]))
-        return interpolated_points
+        # Convert to 3D rays - make sure they're properly shaped for interpolation
+        start_ray = backproject_to_ray(np.array([start_point]), K_intrinsics)
+        end_ray = backproject_to_ray(np.array([end_point]), K_intrinsics)
 
-    def interpolate_points_cylindrical(self, points_arr):
-        import uuid
+        # Interpolate on sphere
+        rays, mask = interpolate_linesegs_on_sphere(start_ray, end_ray, angle_res_deg=dtheta_deg)
 
-        result = []
-        n_points = len(points_arr)
-        for p_idx, cur_p in enumerate(points_arr):
-            next_p = points_arr[(p_idx + 1) % n_points]
+        # Project back to 2D
+        valid_rays = rays[0][mask[0]]
 
-            # Project the current point and the next point from 2D to 3D
-            pt3d_1 = self.project2d_to_3d_cyl(cur_p)
-            pt3d_2 = self.project2d_to_3d_cyl(next_p)
+        # Skip if no valid points
+        if valid_rays.size == 0:
+            continue
 
-            # Interpolate along the cylinder from pt3d_1 to pt3d_2
-            line_segments = self.interpolate_line_segments_on_cylinder(pt3d_1, pt3d_2, segments=10)
+        # Make sure the shape is correct for project_3d_to_2d - should be [..., 3]
+        if len(valid_rays.shape) == 1:
+            valid_rays = valid_rays.reshape(-1, 3)
 
-            for pt3d in line_segments:
-                # Project the interpolated 3D point back to 2D
-                pt2d = self.project3d_to_2d_cyl(pt3d)
-                result.append({
-                    'id': str(uuid.uuid4()),
-                    'position': {
-                        'x': pt2d[0],
-                        'y': pt2d[1],
-                        'z': 0
-                    }
-                })
-        return result
+        segment_points = project_3d_to_2d(valid_rays, K_intrinsics)
+        edge_key = f"exterior-{i}-{(i + 1) % len(exterior_points)}"
+        linestrings[edge_key] = segment_points.tolist()
+
+    # Process interior points (holes)
+    for hole_idx, hole in enumerate(polygon.get("interior", [])):
+        hole_points = np.array(hole)
+        for i in range(len(hole_points)):
+            start_point = hole_points[i]
+            end_point = hole_points[(i + 1) % len(hole_points)]
+
+            # Convert to 3D rays
+            start_ray = backproject_to_ray(np.array([start_point]), K_intrinsics)
+            end_ray = backproject_to_ray(np.array([end_point]), K_intrinsics)
+
+            # Interpolate on sphere
+            rays, mask = interpolate_linesegs_on_sphere(
+                start_ray, end_ray, angle_res_deg=dtheta_deg
+            )
+
+            # Project back to 2D
+            valid_rays = rays[0][mask[0]]
+
+            # Skip if no valid points
+            if valid_rays.size == 0:
+                continue
+
+            # Make sure the shape is correct for project_3d_to_2d - should be [..., 3]
+            if len(valid_rays.shape) == 1:
+                valid_rays = valid_rays.reshape(-1, 3)
+
+            segment_points = project_3d_to_2d(valid_rays, K_intrinsics)
+            edge_key = f"interior-{hole_idx}-{i}-{(i + 1) % len(hole_points)}"
+            linestrings[edge_key] = segment_points.tolist()
+
+    return linestrings
