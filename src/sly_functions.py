@@ -5,7 +5,6 @@ import cv2
 import numpy as np
 import numpy.linalg as la
 import supervisely as sly
-import math
 
 # from PIL import Image, ImageDraw
 
