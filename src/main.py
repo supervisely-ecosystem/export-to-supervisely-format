@@ -13,6 +13,7 @@ import workflow as w
 if sly.is_development():
     load_dotenv("local.env")
     load_dotenv(os.path.expanduser("~/supervisely.env"))
+    sly.logger.setLevel(10)
 
 api = sly.Api.from_env()
 
@@ -32,7 +33,6 @@ sly.logger.info(
     f"Team: {team_id}, Project: {project_id}, Dataset: {dataset_id}, Mode: {mode}, "
     f"Fix extension: {replace_method}"
 )
-
 
 def ours_convert_json_info(self, info: dict, skip_missing=True):
     if info is None:
@@ -69,9 +69,9 @@ if replace_method:
     sly.api.image_api.ImageApi._convert_json_info = ours_convert_json_info
 
 
-def add_additional_field_for_cuboid(project_dir: str):
+def add_additional_label_fields(project_dir: str):
     project = sly.Project(project_dir, sly.OpenMode.READ)
-    progress = sly.Progress("Adding additional field for cuboid", project.total_items)
+    progress = sly.Progress("Adding additional fields to labels", project.total_items)
     for dataset in project:
         dataset: sly.Dataset
 
@@ -80,13 +80,23 @@ def add_additional_field_for_cuboid(project_dir: str):
             changed = False
             ann_path = dataset.get_ann_path(name)
             meta_path = dataset.get_item_meta_path(name)
+            image_meta = sly.json.load_json_file(meta_path)
+
+            try:
+                K_instrinsics = f.get_k_intrinsics_from_meta(image_meta)
+            except ValueError:
+                sly.logger.debug("Failed to get K_intrinsics from meta, skipping...")
+                progress.iter_done_report()
+                continue
 
             ann_json = sly.json.load_json_file(ann_path)
             for label in ann_json["objects"]:
                 if label["geometryType"] == sly.Cuboid2d.geometry_name():
-                    image_meta = sly.json.load_json_file(meta_path)
-                    K_instrinsics = f.get_k_intrinsics_from_meta(image_meta)
                     linestrings = f.get_linestrings_from_label(label, K_instrinsics)
+                    label["_curved_cylindrical_edges"] = linestrings
+                    changed = True
+                elif label["geometryType"] == sly.Polygon.geometry_name():
+                    linestrings = f.get_polygon_linestrings(label["points"], K_instrinsics)
                     label["_curved_cylindrical_edges"] = linestrings
                     changed = True
 
@@ -137,11 +147,11 @@ def download(project: sly.Project) -> str:
 
     meta_path = os.path.join(download_dir, "meta.json")
     meta = sly.ProjectMeta.from_json(sly.json.load_json_file(meta_path))
-    if any(obj_cls.geometry_type == sly.Cuboid2d for obj_cls in meta.obj_classes):
+    if any(obj_cls.geometry_type in [sly.Cuboid2d, sly.Polygon] for obj_cls in meta.obj_classes):
         try:
-            add_additional_field_for_cuboid(download_dir)
+            add_additional_label_fields(download_dir)
         except Exception as e:
-            sly.logger.error(f"Error while adding additional field for 2D cuboid: {e}")
+            sly.logger.error(f"Error while adding additional fields: {e}")
 
     sly.logger.info("Project downloaded...")
     return download_dir
