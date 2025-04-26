@@ -80,6 +80,9 @@ def add_additional_label_fields(project_dir: str):
             changed = False
             ann_path = dataset.get_ann_path(name)
             meta_path = dataset.get_item_meta_path(name)
+            if not os.path.exists(meta_path):
+                progress.iter_done_report()
+                continue
             image_meta = sly.json.load_json_file(meta_path)
 
             try:
