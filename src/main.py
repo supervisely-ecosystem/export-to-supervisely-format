@@ -6,6 +6,9 @@ from dotenv import load_dotenv
 from supervisely.api.module_api import ApiField
 from supervisely.io.fs import get_file_ext
 from supervisely.project.download import download_async_or_sync
+from supervisely.annotation.annotation import AnnotationJsonFields as AJF
+from supervisely.annotation.label import LabelJsonFields as LJF
+from supervisely._utils import remove_non_printable
 
 import sly_functions as f
 import workflow as w
@@ -93,12 +96,21 @@ def add_additional_label_fields(project_dir: str):
                 continue
 
             ann_json = sly.json.load_json_file(ann_path)
-            for label in ann_json["objects"]:
-                if label["geometryType"] == sly.Cuboid2d.geometry_name():
+            for label in ann_json[AJF.LABELS]:
+                obj_class_name = label[LJF.OBJ_CLASS_NAME]
+                santized_class_name = remove_non_printable(obj_class_name)
+
+                class_name_length = len(obj_class_name)
+                santized_class_name_length = len(santized_class_name)
+                if class_name_length != santized_class_name_length:
+                    label[LJF.OBJ_CLASS_NAME] = santized_class_name
+                    sly.logger.debug(f"Removed non-printable characters from class name: {repr(obj_class_name)} -> {label[LJF.OBJ_CLASS_NAME]}")
+                    changed = True
+                if label[LJF.GEOMETRY_TYPE] == sly.Cuboid2d.geometry_name():
                     linestrings = f.get_linestrings_from_label(label, K_instrinsics)
                     label["_curved_cylindrical_edges"] = linestrings
                     changed = True
-                elif label["geometryType"] == sly.Polygon.geometry_name():
+                elif label[LJF.GEOMETRY_TYPE] == sly.Polygon.geometry_name():
                     linestrings = f.get_polygon_linestrings(label["points"], K_instrinsics)
                     label["_curved_cylindrical_edges"] = linestrings
                     changed = True
@@ -148,13 +160,10 @@ def download(project: sly.Project) -> str:
         save_image_info=True,
     )
 
-    meta_path = os.path.join(download_dir, "meta.json")
-    meta = sly.ProjectMeta.from_json(sly.json.load_json_file(meta_path))
-    if any(obj_cls.geometry_type in [sly.Cuboid2d, sly.Polygon] for obj_cls in meta.obj_classes):
-        try:
-            add_additional_label_fields(download_dir)
-        except Exception as e:
-            sly.logger.error(f"Error while adding additional fields: {e}")
+    try:
+        add_additional_label_fields(download_dir)
+    except Exception as e:
+        sly.logger.error(f"Error while adding additional fields: {e}")
 
     sly.logger.info("Project downloaded...")
     return download_dir
