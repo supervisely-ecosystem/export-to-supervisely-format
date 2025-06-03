@@ -3,12 +3,12 @@ from distutils import util
 
 import supervisely as sly
 from dotenv import load_dotenv
+from supervisely._utils import remove_non_printable
+from supervisely.annotation.annotation import AnnotationJsonFields as AJF
+from supervisely.annotation.label import LabelJsonFields as LJF
 from supervisely.api.module_api import ApiField
 from supervisely.io.fs import get_file_ext
 from supervisely.project.download import download_async_or_sync
-from supervisely.annotation.annotation import AnnotationJsonFields as AJF
-from supervisely.annotation.label import LabelJsonFields as LJF
-from supervisely._utils import remove_non_printable
 
 import sly_functions as f
 import workflow as w
@@ -36,6 +36,7 @@ sly.logger.info(
     f"Team: {team_id}, Project: {project_id}, Dataset: {dataset_id}, Mode: {mode}, "
     f"Fix extension: {replace_method}"
 )
+
 
 def ours_convert_json_info(self, info: dict, skip_missing=True):
     if info is None:
@@ -75,6 +76,24 @@ if replace_method:
 def add_additional_label_fields(project_dir: str):
     project = sly.Project(project_dir, sly.OpenMode.READ)
     progress = sly.Progress("Adding additional fields to labels", project.total_items)
+
+    classes_sanitized = False
+    new_obj_classes = []
+    for objclass in project.meta.obj_classes.items():
+        sanitized_class_name = remove_non_printable(objclass.name)
+        if sanitized_class_name != objclass.name:
+            sly.logger.debug(
+                f"Removing non-printable characters from object class name: {repr(objclass.name)} -> {repr(sanitized_class_name)}"
+            )
+            objclass = objclass.clone(name=sanitized_class_name)
+            classes_sanitized = True
+        new_obj_classes.append(objclass)
+
+    if classes_sanitized:
+        new_meta = project.meta.clone(new_obj_classes)
+        meta_path = project._get_project_meta_path()
+        sly.json.dump_json_file(new_meta.to_json(), meta_path)
+
     for dataset in project:
         dataset: sly.Dataset
 
@@ -83,37 +102,41 @@ def add_additional_label_fields(project_dir: str):
             changed = False
             ann_path = dataset.get_ann_path(name)
             meta_path = dataset.get_item_meta_path(name)
-            if not os.path.exists(meta_path):
-                progress.iter_done_report()
-                continue
-            image_meta = sly.json.load_json_file(meta_path)
+            image_meta = None
+            if os.path.exists(meta_path):
+                image_meta = sly.json.load_json_file(meta_path)
+                try:
+                    K_instrinsics = f.get_k_intrinsics_from_meta(image_meta)
+                except ValueError:
+                    sly.logger.debug("Failed to get K_intrinsics from meta, skipping...")
+                    progress.iter_done_report()
+                    continue
 
-            try:
-                K_instrinsics = f.get_k_intrinsics_from_meta(image_meta)
-            except ValueError:
-                sly.logger.debug("Failed to get K_intrinsics from meta, skipping...")
+            if image_meta is None and classes_sanitized is False:
                 progress.iter_done_report()
                 continue
 
             ann_json = sly.json.load_json_file(ann_path)
             for label in ann_json[AJF.LABELS]:
-                obj_class_name = label[LJF.OBJ_CLASS_NAME]
-                santized_class_name = remove_non_printable(obj_class_name)
+                if classes_sanitized:
+                    obj_class_name = label[LJF.OBJ_CLASS_NAME]
+                    santized_class_name = remove_non_printable(obj_class_name)
 
-                class_name_length = len(obj_class_name)
-                santized_class_name_length = len(santized_class_name)
-                if class_name_length != santized_class_name_length:
-                    label[LJF.OBJ_CLASS_NAME] = santized_class_name
-                    sly.logger.debug(f"Removed non-printable characters from class name: {repr(obj_class_name)} -> {label[LJF.OBJ_CLASS_NAME]}")
-                    changed = True
-                if label[LJF.GEOMETRY_TYPE] == sly.Cuboid2d.geometry_name():
-                    linestrings = f.get_linestrings_from_label(label, K_instrinsics)
-                    label["_curved_cylindrical_edges"] = linestrings
-                    changed = True
-                elif label[LJF.GEOMETRY_TYPE] == sly.Polygon.geometry_name():
-                    linestrings = f.get_polygon_linestrings(label["points"], K_instrinsics)
-                    label["_curved_cylindrical_edges"] = linestrings
-                    changed = True
+                    class_name_length = len(obj_class_name)
+                    santized_class_name_length = len(santized_class_name)
+                    if class_name_length != santized_class_name_length:
+                        label[LJF.OBJ_CLASS_NAME] = santized_class_name
+                        changed = True
+
+                if image_meta is not None:
+                    if label[LJF.GEOMETRY_TYPE] == sly.Cuboid2d.geometry_name():
+                        linestrings = f.get_linestrings_from_label(label, K_instrinsics)
+                        label["_curved_cylindrical_edges"] = linestrings
+                        changed = True
+                    elif label[LJF.GEOMETRY_TYPE] == sly.Polygon.geometry_name():
+                        linestrings = f.get_polygon_linestrings(label["points"], K_instrinsics)
+                        label["_curved_cylindrical_edges"] = linestrings
+                        changed = True
 
             if changed:
                 sly.json.dump_json_file(ann_json, ann_path)
