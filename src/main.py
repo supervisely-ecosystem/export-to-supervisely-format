@@ -3,7 +3,6 @@ from distutils import util
 
 import supervisely as sly
 from dotenv import load_dotenv
-from supervisely._utils import remove_non_printable
 from supervisely.annotation.annotation import AnnotationJsonFields as AJF
 from supervisely.annotation.label import LabelJsonFields as LJF
 from supervisely.api.module_api import ApiField
@@ -77,20 +76,25 @@ def add_additional_label_fields(project_dir: str):
     project = sly.Project(project_dir, sly.OpenMode.READ)
     progress = sly.Progress("Adding additional fields to labels", project.total_items)
 
-    classes_sanitized = False
+    class_names_sanitized = {}
     new_obj_classes = []
     for objclass in project.meta.obj_classes.items():
-        sanitized_class_name = remove_non_printable(objclass.name)
-        if sanitized_class_name != objclass.name:
-            sly.logger.debug(
-                f"Removing non-printable characters from object class name: {repr(objclass.name)} -> {repr(sanitized_class_name)}"
-            )
+        if sanitized_class_name := f.sanitize_name_if_needed(objclass.name):
+            class_names_sanitized[objclass.name] = sanitized_class_name
             objclass = objclass.clone(name=sanitized_class_name)
-            classes_sanitized = True
         new_obj_classes.append(objclass)
 
-    if classes_sanitized:
-        new_meta = project.meta.clone(new_obj_classes)
+    tagmeta_names_sanitized = {}
+    new_tagmetas = []
+    for tagmeta in project.meta.tag_metas.items():
+        if sanitized_tag_name := f.sanitize_name_if_needed(tagmeta.name):
+            tagmeta_names_sanitized[tagmeta.name] = sanitized_tag_name
+            tagmeta = tagmeta.clone(name=sanitized_tag_name)
+        new_tagmetas.append(tagmeta)
+
+    names_sanitized = len(class_names_sanitized) > 0 or len(tagmeta_names_sanitized) > 0
+    if names_sanitized:
+        new_meta = project.meta.clone(new_obj_classes, new_tagmetas)
         meta_path = project._get_project_meta_path()
         sly.json.dump_json_file(new_meta.to_json(), meta_path)
 
@@ -112,21 +116,31 @@ def add_additional_label_fields(project_dir: str):
                     progress.iter_done_report()
                     continue
 
-            if image_meta is None and classes_sanitized is False:
+            if image_meta is None and names_sanitized is False:
                 progress.iter_done_report()
                 continue
 
             ann_json = sly.json.load_json_file(ann_path)
+            image_tags = ann_json.get(AJF.IMG_TAGS, [])
+            if image_tags and names_sanitized:
+                for tag in image_tags:
+                    if santized_tag_name := tagmeta_names_sanitized.get(tag[ApiField.NAME]):
+                        tag[ApiField.NAME] = santized_tag_name
+                        changed = True
+            # todo image tags
             for label in ann_json[AJF.LABELS]:
-                if classes_sanitized:
-                    obj_class_name = label[LJF.OBJ_CLASS_NAME]
-                    santized_class_name = remove_non_printable(obj_class_name)
-
-                    class_name_length = len(obj_class_name)
-                    santized_class_name_length = len(santized_class_name)
-                    if class_name_length != santized_class_name_length:
+                if names_sanitized:
+                    objclass_name = label[LJF.OBJ_CLASS_NAME]
+                    if santized_class_name := class_names_sanitized.get(objclass_name):
                         label[LJF.OBJ_CLASS_NAME] = santized_class_name
                         changed = True
+
+                    if label_tags := label.get(LJF.TAGS):
+                        for tag in label_tags:
+                            tag_name = tag[LJF.TAG_NAME]
+                            if s_tag_name := tagmeta_names_sanitized.get(tag_name):
+                                tag[LJF.TAG_NAME] = s_tag_name
+                                changed = True
 
                 if image_meta is not None:
                     if label[LJF.GEOMETRY_TYPE] == sly.Cuboid2d.geometry_name():

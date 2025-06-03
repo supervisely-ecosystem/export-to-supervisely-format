@@ -445,3 +445,17 @@ def get_polygon_linestrings(polygon: dict, K_intrinsics, dtheta_deg: float = 5.0
         interior_linestrings.append(hole_linestrings)
 
     return {"exterior": exterior_linestrings, "interior": interior_linestrings}
+
+
+def sanitize_name_if_needed(name: str):
+    from supervisely._utils import remove_non_printable
+
+    initial_length = len(name)
+    sanitized_name = remove_non_printable(name)
+    santizied_length = len(sanitized_name)
+
+    if initial_length != santizied_length:
+        sly.logger.debug(
+            f"Removed non-printable characters for name: {repr(name)}  -> '{sanitized_name}'"
+        )
+        return sanitized_name
