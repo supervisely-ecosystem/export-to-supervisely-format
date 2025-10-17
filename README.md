@@ -24,7 +24,7 @@ Download images project or dataset in [Supervisely JSON format](https://docs.sup
 
 # How To Use
 
-**Step 1**: Add app to your team from [Ecosystem](../../../../supervisely-ecosystem/export-to-supervisely-format) if it is not there
+**Step 1**: Add app to your team from [Ecosystem](https://ecosystem.supervisely.com/apps/export-to-supervisely-format) if it is not there
 
 **Step 2**: Open context menu of images project (or images dataset) -> `Run App` -> `Download via app` -> `Export to Supervisely format`
 
