@@ -206,10 +206,13 @@ def download(project: sly.Project) -> str:
     return download_dir
 
 
-if __name__ == "__main__":
+def main():
     project = api.project.get_info_by_id(project_id)
     download_dir = download(project)
     w.workflow_input(api, project.id)
     file_info = sly.output.set_download(download_dir)
     w.workflow_output(api, file_info)
     sly.logger.info("Archive uploaded and ready for download.")
+
+if __name__ == "__main__":
+    sly.main_wrapper("main", main)
