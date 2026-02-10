@@ -5,6 +5,7 @@ import supervisely as sly
 from dotenv import load_dotenv
 from supervisely.annotation.annotation import AnnotationJsonFields as AJF
 from supervisely.annotation.label import LabelJsonFields as LJF
+from supervisely.annotation.tag import TagJsonFields as TJF
 from supervisely.api.module_api import ApiField
 from supervisely.io.fs import get_file_ext
 from supervisely.project.download import download_async_or_sync
@@ -144,10 +145,10 @@ def add_additional_label_fields(project_dir: str):
                     label_tags = label.get(LJF.TAGS)
                     if label_tags:
                         for tag in label_tags:
-                            tag_name = tag[ApiField.NAME]
+                            tag_name = tag[TJF.TAG_NAME]
                             s_tag_name = tagmeta_names_sanitized.get(tag_name)
                             if s_tag_name:
-                                tag[ApiField.NAME] = s_tag_name
+                                tag[TJF.TAG_NAME] = s_tag_name
                                 changed = True
 
                 if image_meta is not None:
