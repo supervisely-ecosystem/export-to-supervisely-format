@@ -5,6 +5,7 @@ import supervisely as sly
 from dotenv import load_dotenv
 from supervisely.annotation.annotation import AnnotationJsonFields as AJF
 from supervisely.annotation.label import LabelJsonFields as LJF
+from supervisely.annotation.tag import TagJsonFields as TJF
 from supervisely.api.module_api import ApiField
 from supervisely.io.fs import get_file_ext
 from supervisely.project.download import download_async_or_sync
@@ -78,18 +79,20 @@ def add_additional_label_fields(project_dir: str):
 
     class_names_sanitized = {}
     new_obj_classes = []
-    for objclass in project.meta.obj_classes.items():
-        if sanitized_class_name := f.sanitize_name_if_needed(objclass.name):
-            class_names_sanitized[objclass.name] = sanitized_class_name
-            objclass = objclass.clone(name=sanitized_class_name)
+    for objclass in project.meta.obj_classes:
+        santized_class_name = f.sanitize_name_if_needed(objclass.name)
+        if santized_class_name:
+            class_names_sanitized[objclass.name] = santized_class_name
+            objclass = objclass.clone(name=santized_class_name)
         new_obj_classes.append(objclass)
 
     tagmeta_names_sanitized = {}
     new_tagmetas = []
-    for tagmeta in project.meta.tag_metas.items():
-        if sanitized_tag_name := f.sanitize_name_if_needed(tagmeta.name):
-            tagmeta_names_sanitized[tagmeta.name] = sanitized_tag_name
-            tagmeta = tagmeta.clone(name=sanitized_tag_name)
+    for tagmeta in project.meta.tag_metas:
+        santized_tag_name = f.sanitize_name_if_needed(tagmeta.name)
+        if santized_tag_name:
+            tagmeta_names_sanitized[tagmeta.name] = santized_tag_name
+            tagmeta = tagmeta.clone(name=santized_tag_name)
         new_tagmetas.append(tagmeta)
 
     names_sanitized = len(class_names_sanitized) > 0 or len(tagmeta_names_sanitized) > 0
@@ -116,6 +119,7 @@ def add_additional_label_fields(project_dir: str):
                     progress.iter_done_report()
                     continue
 
+            # If there is no meta and we haven't sanitized any names, we can skip processing this annotation
             if image_meta is None and names_sanitized is False:
                 progress.iter_done_report()
                 continue
@@ -124,22 +128,27 @@ def add_additional_label_fields(project_dir: str):
             image_tags = ann_json.get(AJF.IMG_TAGS, [])
             if image_tags and names_sanitized:
                 for tag in image_tags:
-                    if santized_tag_name := tagmeta_names_sanitized.get(tag[ApiField.NAME]):
+                    santized_tag_name = tagmeta_names_sanitized.get(tag[ApiField.NAME])
+                    if santized_tag_name:
                         tag[ApiField.NAME] = santized_tag_name
                         changed = True
+
             # todo image tags
             for label in ann_json[AJF.LABELS]:
                 if names_sanitized:
                     objclass_name = label[LJF.OBJ_CLASS_NAME]
-                    if santized_class_name := class_names_sanitized.get(objclass_name):
+                    santized_class_name = class_names_sanitized.get(objclass_name)
+                    if santized_class_name:
                         label[LJF.OBJ_CLASS_NAME] = santized_class_name
                         changed = True
 
-                    if label_tags := label.get(LJF.TAGS):
+                    label_tags = label.get(LJF.TAGS)
+                    if label_tags:
                         for tag in label_tags:
-                            tag_name = tag[LJF.TAG_NAME]
-                            if s_tag_name := tagmeta_names_sanitized.get(tag_name):
-                                tag[LJF.TAG_NAME] = s_tag_name
+                            tag_name = tag[TJF.TAG_NAME]
+                            s_tag_name = tagmeta_names_sanitized.get(tag_name)
+                            if s_tag_name:
+                                tag[TJF.TAG_NAME] = s_tag_name
                                 changed = True
 
                 if image_meta is not None:
@@ -213,6 +222,7 @@ def main():
     file_info = sly.output.set_download(download_dir)
     w.workflow_output(api, file_info)
     sly.logger.info("Archive uploaded and ready for download.")
+
 
 if __name__ == "__main__":
     sly.main_wrapper("main", main)
