@@ -1,16 +1,15 @@
 import os
-from distutils import util
 
-import supervisely as sly
 from dotenv import load_dotenv
+
+import sly_functions as f
+import supervisely as sly
+import workflow as w
 from supervisely.annotation.annotation import AnnotationJsonFields as AJF
 from supervisely.annotation.label import LabelJsonFields as LJF
 from supervisely.api.module_api import ApiField
 from supervisely.io.fs import get_file_ext
 from supervisely.project.download import download_async_or_sync
-
-import sly_functions as f
-import workflow as w
 
 if sly.is_development():
     load_dotenv("local.env")
@@ -29,7 +28,7 @@ team_id = sly.env.team_id()
 project_id = sly.env.project_id()
 dataset_id = sly.env.dataset_id(raise_not_found=False)
 mode = os.environ.get("modal.state.download", "all")
-replace_method = bool(util.strtobool(os.environ.get("modal.state.fixExtension", "false")))
+replace_method = (os.environ.get("modal.state.fixExtension", "false")).lower() == "true"
 # endregion
 sly.logger.info(
     f"Team: {team_id}, Project: {project_id}, Dataset: {dataset_id}, Mode: {mode}, "
