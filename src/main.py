@@ -253,18 +253,32 @@ def download_overlay_project(
         dataset_dir = os.path.join(download_dir, *dataset_path_parts)
         item_dir, ann_dir, overlays_root = make_overlay_dataset_dirs(dataset_dir)
 
-        images = api.image.get_list(
+        parent_images = api.image.get_list(
             dataset.id,
+            filters=[
+                {
+                    ApiField.FIELD: ApiField.PARENT_ID,
+                    ApiField.OPERATOR: "=",
+                    ApiField.VALUE: None,
+                }
+            ],
+            force_metadata_for_links=False,
+        )
+        overlay_images = api.image.get_list(
+            dataset.id,
+            filters=[
+                {
+                    ApiField.FIELD: ApiField.PARENT_ID,
+                    ApiField.OPERATOR: "!=",
+                    ApiField.VALUE: None,
+                }
+            ],
             force_metadata_for_links=False,
             extra_fields=[ApiField.PARENT_ID],
         )
-        parent_images = []
         overlay_images_by_parent = defaultdict(list)
-        for image in images:
-            if image.parent_id is None:
-                parent_images.append(image)
-            else:
-                overlay_images_by_parent[image.parent_id].append(image)
+        for image in overlay_images:
+            overlay_images_by_parent[image.parent_id].append(image)
 
         parent_ids = {image.id for image in parent_images}
         orphan_overlay_ids = set(overlay_images_by_parent) - parent_ids
