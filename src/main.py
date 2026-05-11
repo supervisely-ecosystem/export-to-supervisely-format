@@ -1,4 +1,6 @@
 import os
+from collections import defaultdict
+from typing import Dict, List
 
 from dotenv import load_dotenv
 
@@ -8,8 +10,11 @@ import workflow as w
 from supervisely.annotation.annotation import AnnotationJsonFields as AJF
 from supervisely.annotation.label import LabelJsonFields as LJF
 from supervisely.api.module_api import ApiField
+from supervisely.convert.base_converter import AvailableImageConverters
+from supervisely.convert.image.overlay.overlay_converter import OverlayImageConverter
 from supervisely.io.fs import get_file_ext
 from supervisely.project.download import download_async_or_sync
+from supervisely.project.project_settings import LabelingInterface
 
 if sly.is_development():
     load_dotenv("local.env")
@@ -156,19 +161,7 @@ def add_additional_label_fields(project_dir: str):
             progress.iter_done_report()
 
 
-def download(project: sly.Project) -> str:
-    """Downloads the project and returns the path to the downloaded directory.
-
-    :param project: The project to download
-    :type project: sly.Project
-    :return: The path to the downloaded directory
-    :rtype: str
-    """
-    download_dir = os.path.join(data_dir, f"{project.id}_{project.name}")
-    sly.fs.mkdir(download_dir, remove_content_if_exists=True)
-
-    f.project_meta_deserialization_check(api, project)
-
+def get_dataset_ids(project: sly.ProjectInfo) -> List[int]:
     if dataset_id is not None:
         dataset_ids = [dataset_id]
         nested_datasets = api.dataset.get_nested(project.id, dataset_id)
@@ -177,6 +170,165 @@ def download(project: sly.Project) -> str:
     else:
         datasets = api.dataset.get_list(project.id, recursive=True)
         dataset_ids = [dataset.id for dataset in datasets]
+    return dataset_ids
+
+
+def is_overlay_project(project: sly.ProjectInfo, project_meta: sly.ProjectMeta) -> bool:
+    if project.type == AvailableImageConverters.OVERLAY:
+        return True
+
+    return project_meta.project_settings.labeling_interface == LabelingInterface.OVERLAY
+
+
+def make_overlay_dataset_dirs(dataset_dir: str):
+    item_dir = os.path.join(dataset_dir, OverlayImageConverter.ITEM_DIR)
+    ann_dir = os.path.join(dataset_dir, OverlayImageConverter.ANN_DIR)
+    overlays_root = os.path.join(dataset_dir, OverlayImageConverter.OVERLAY_DIR)
+
+    sly.fs.mkdir(item_dir)
+    sly.fs.mkdir(ann_dir)
+    sly.fs.mkdir(overlays_root)
+    return item_dir, ann_dir, overlays_root
+
+
+def download_overlay_images(
+    dataset_id: int,
+    images,
+    image_paths: Dict[int, str],
+    progress_cb=None,
+) -> None:
+    for image_batch in sly.batched(images, batch_size):
+        ids = [image.id for image in image_batch]
+        paths = [image_paths[image.id] for image in image_batch]
+        for path in paths:
+            sly.fs.mkdir(os.path.dirname(path))
+        api.image.download_paths(dataset_id, ids, paths, progress_cb=progress_cb)
+
+
+def download_overlay_annotations(dataset_id: int, parent_images, ann_dir: str) -> None:
+    progress = sly.Progress("Downloading overlay annotations", len(parent_images))
+    for image_batch in sly.batched(parent_images, batch_size):
+        image_ids = [image.id for image in image_batch]
+        ann_infos = api.annotation.download_batch(
+            dataset_id,
+            image_ids,
+            progress_cb=progress.iters_done_report,
+        )
+        id_to_ann = {ann.image_id: ann.annotation for ann in ann_infos}
+        for image in image_batch:
+            ann = id_to_ann.get(image.id)
+            if ann is None:
+                ann = sly.Annotation((image.height, image.width)).to_json()
+            ann_path = os.path.join(ann_dir, f"{image.name}.json")
+            sly.json.dump_json_file(ann, ann_path)
+
+
+def download_overlay_project(
+    project: sly.ProjectInfo,
+    project_meta: sly.ProjectMeta,
+    download_dir: str,
+    dataset_ids: List[int],
+) -> str:
+    sly.json.dump_json_file(project_meta.to_json(), os.path.join(download_dir, "meta.json"))
+
+    if mode != "all":
+        sly.logger.warning(
+            "Overlay format requires parent and overlay image files. "
+            "Exporting images despite the 'only json annotations' option."
+        )
+
+    selected_dataset_ids = set(dataset_ids)
+    total_images = 0
+    for _, dataset in api.dataset.tree(project.id):
+        if dataset.id not in selected_dataset_ids:
+            continue
+        total_images += dataset.images_count
+
+    image_progress = sly.Progress("Downloading overlay images", total_images)
+    for parents, dataset in api.dataset.tree(project.id):
+        if dataset.id not in selected_dataset_ids:
+            continue
+
+        dataset_path_parts = parents + [dataset.name]
+        dataset_dir = os.path.join(download_dir, *dataset_path_parts)
+        item_dir, ann_dir, overlays_root = make_overlay_dataset_dirs(dataset_dir)
+
+        images = api.image.get_list(dataset.id, force_metadata_for_links=False)
+        parent_images = []
+        overlay_images_by_parent = defaultdict(list)
+        for image in images:
+            if image.parent_id is None:
+                parent_images.append(image)
+            else:
+                overlay_images_by_parent[image.parent_id].append(image)
+
+        parent_ids = {image.id for image in parent_images}
+        orphan_overlay_ids = set(overlay_images_by_parent) - parent_ids
+        if orphan_overlay_ids:
+            skipped_count = sum(len(overlay_images_by_parent[id]) for id in orphan_overlay_ids)
+            sly.logger.warning(
+                f"Dataset '{dataset.name}' contains overlays with missing parent images: "
+                f"{sorted(orphan_overlay_ids)}. They will be skipped."
+            )
+            image_progress.iters_done_report(skipped_count)
+
+        image_paths = {}
+        for parent in parent_images:
+            parent_path = os.path.join(item_dir, parent.name)
+            image_paths[parent.id] = parent_path
+
+            parent_name = os.path.splitext(parent.name)[0]
+            parent_overlay_dir = os.path.join(overlays_root, parent_name)
+            for overlay in overlay_images_by_parent.get(parent.id, []):
+                image_paths[overlay.id] = os.path.join(parent_overlay_dir, overlay.name)
+
+        export_images = parent_images + [
+            overlay
+            for parent in parent_images
+            for overlay in overlay_images_by_parent.get(parent.id, [])
+        ]
+        download_overlay_images(
+            dataset.id,
+            export_images,
+            image_paths,
+            progress_cb=image_progress.iters_done_report,
+        )
+        download_overlay_annotations(dataset.id, parent_images, ann_dir)
+
+        meta_dir = os.path.join(dataset_dir, "meta")
+        for image in parent_images:
+            if image.meta:
+                sly.fs.mkdir(meta_dir)
+                sly.json.dump_json_file(image.meta, os.path.join(meta_dir, f"{image.name}.json"))
+
+    sly.logger.info("Overlay project downloaded...")
+    return download_dir
+
+
+def download(project: sly.ProjectInfo) -> str:
+    """Downloads the project and returns the path to the downloaded directory.
+
+    :param project: The project to download
+    :type project: sly.ProjectInfo
+    :return: The path to the downloaded directory
+    :rtype: str
+    """
+    download_dir = os.path.join(data_dir, f"{project.id}_{project.name}")
+    sly.fs.mkdir(download_dir, remove_content_if_exists=True)
+
+    dataset_ids = get_dataset_ids(project)
+    meta_json = api.project.get_meta(project.id, with_settings=True)
+    try:
+        project_meta = sly.ProjectMeta.from_json(meta_json)
+    except Exception:
+        f.project_meta_deserialization_check(api, project)
+        project_meta = sly.ProjectMeta.from_json(
+            api.project.get_meta(project.id, with_settings=True)
+        )
+
+    if is_overlay_project(project, project_meta):
+        sly.logger.info("Overlay project detected. Starting custom overlay export...")
+        return download_overlay_project(project, project_meta, download_dir, dataset_ids)
 
     if mode == "all":
         save_images = True
@@ -212,6 +364,7 @@ def main():
     file_info = sly.output.set_download(download_dir)
     w.workflow_output(api, file_info)
     sly.logger.info("Archive uploaded and ready for download.")
+
 
 if __name__ == "__main__":
     sly.main_wrapper("main", main)
