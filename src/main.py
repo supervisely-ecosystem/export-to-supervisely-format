@@ -253,7 +253,11 @@ def download_overlay_project(
         dataset_dir = os.path.join(download_dir, *dataset_path_parts)
         item_dir, ann_dir, overlays_root = make_overlay_dataset_dirs(dataset_dir)
 
-        images = api.image.get_list(dataset.id, force_metadata_for_links=False)
+        images = api.image.get_list(
+            dataset.id,
+            force_metadata_for_links=False,
+            extra_fields=[ApiField.PARENT_ID],
+        )
         parent_images = []
         overlay_images_by_parent = defaultdict(list)
         for image in images:
