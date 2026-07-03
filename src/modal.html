@@ -10,4 +10,16 @@
                                               Such cases will be resolved and image will be exported as 'abc.jpg.png'">
         <el-checkbox v-model="state.fixExtension">fix image extension based on image MIME type</el-checkbox>
     </sly-field>
+    <div v-if="state.collectionId || context.collectionId">
+        <sly-field title="Dataset structure"
+                   description="Keep the original dataset structure or place all collection images into a single dataset">
+            <el-checkbox v-model="state.preserveStructure">preserve dataset structure</el-checkbox>
+        </sly-field>
+        <sly-field v-if="!state.preserveStructure"
+                   title="Dataset name"
+                   description="Name of the dataset all collection images will be placed into">
+            <el-input v-model="state.datasetName"
+                      :placeholder="'Collection ' + (state.collectionId || context.collectionId)"></el-input>
+        </sly-field>
+    </div>
 </div>
