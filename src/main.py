@@ -48,6 +48,12 @@ sly.logger.info(
     f"Preserve structure: {preserve_structure}"
 )
 
+# A single high-resolution image with a large bitmap/alpha-mask annotation
+# can carry a multi-megabyte JSON payload, so batches are capped both by
+# item count and by cumulative pixel area rather than item count alone.
+COLLECTION_BATCH_MAX_ITEMS = 1000
+COLLECTION_BATCH_MAX_PIXELS = 100_000_000  # ~100 MP, e.g. two 8000x6000 images
+COLLECTION_BATCH_MIN_ITEMS = 10  # guaranteed batch size even for very large images
 APP_NAME = "Export to Supervisely format"
 # auto-created filter collections are named like "Filtered entities 2026-07-03T14-31-57-501Z"
 FILTERED_COLLECTION_PATTERN = re.compile(
@@ -121,6 +127,35 @@ def disambiguate_names(image_infos):
     return result
 
 
+def batched_by_pixels(
+    images,
+    max_pixels=COLLECTION_BATCH_MAX_PIXELS,
+    max_items=COLLECTION_BATCH_MAX_ITEMS,
+    min_items=COLLECTION_BATCH_MIN_ITEMS,
+):
+    """Group images into batches bounded by both item count and total pixel area.
+
+    Annotation size for bitmap/alpha-mask labels scales with image resolution,
+    not item count, so a fixed-size item batch can't bound memory on its own
+    for large images. min_items guarantees a batch isn't flushed by the pixel
+    cap before it reaches that many items (accepting more memory for very
+    large images); max_items is a hard ceiling regardless of pixel budget.
+    """
+    batch = []
+    batch_pixels = 0
+    for image in images:
+        image_pixels = (image.width or 0) * (image.height or 0)
+        pixel_cap_hit = len(batch) >= min_items and batch_pixels + image_pixels > max_pixels
+        if batch and (pixel_cap_hit or len(batch) >= max_items):
+            yield batch
+            batch = []
+            batch_pixels = 0
+        batch.append(image)
+        batch_pixels += image_pixels
+    if batch:
+        yield batch
+
+
 def download_collection_flat(
     project_meta: sly.ProjectMeta,
     download_dir: str,
@@ -147,7 +182,7 @@ def download_collection_flat(
 
     progress = sly.Progress("Downloading collection items", len(collection_images))
     for src_dataset_id, images in by_dataset.items():
-        for image_batch in sly.batched(images, batch_size):
+        for image_batch in batched_by_pixels(images):
             image_ids = [image.id for image in image_batch]
             ann_infos = api.annotation.download_batch(src_dataset_id, image_ids)
             id_to_ann = {ann.image_id: ann.annotation for ann in ann_infos}
