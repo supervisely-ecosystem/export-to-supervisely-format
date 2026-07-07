@@ -133,6 +133,27 @@ def disambiguate_names(image_infos):
     return result
 
 
+def download_images_batch(dataset_id: int, image_ids: List[int], paths: List[str]) -> None:
+    """Download images to local paths, preferring the faster async downloader.
+
+    Falls back to the sync download on any error, matching the fallback
+    philosophy of download_async_or_sync used elsewhere in this app.
+    """
+    try:
+        coro = api.image.download_paths_async(image_ids, paths)
+        loop = sly.utils.get_or_create_event_loop()
+        if loop.is_running():
+            future = asyncio.run_coroutine_threadsafe(coro, loop)
+            future.result()
+        else:
+            loop.run_until_complete(coro)
+    except Exception as e:
+        sly.logger.warning(
+            f"Async image download failed, falling back to sync: {repr(e)}"
+        )
+        api.image.download_paths(dataset_id, image_ids, paths)
+
+
 def batched_by_pixels(
     images,
     max_pixels=COLLECTION_BATCH_MAX_PIXELS,
@@ -209,15 +230,7 @@ def download_collection_flat(
                     )
             if mode == "all":
                 paths = [os.path.join(img_dir, image.name) for image in image_batch]
-                # the async downloader streams images concurrently and is
-                # measured ~4.5x faster than the sync download_paths here
-                coro = api.image.download_paths_async(image_ids, paths)
-                loop = sly.utils.get_or_create_event_loop()
-                if loop.is_running():
-                    future = asyncio.run_coroutine_threadsafe(coro, loop)
-                    future.result()
-                else:
-                    loop.run_until_complete(coro)
+                download_images_batch(src_dataset_id, image_ids, paths)
             progress.iters_done_report(len(image_batch))
 
     sly.logger.info(
