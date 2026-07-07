@@ -102,6 +102,9 @@ def disambiguate_names(image_infos):
     Every image involved in a name conflict gets its source dataset ID appended
     to the name, so the origin of each item stays visible.
     """
+    progress = sly.Progress(
+        "Checking for duplicate names", len(image_infos), need_info_log=True
+    )
     name_counts = defaultdict(int)
     for image_info in image_infos:
         name_counts[image_info.name] += 1
@@ -110,6 +113,7 @@ def disambiguate_names(image_infos):
     for image_info in image_infos:
         if name_counts[image_info.name] < 2:
             result.append(image_info)
+            progress.iter_done_report()
             continue
         if "." in image_info.name:
             stem, ext = image_info.name.rsplit(".", 1)
@@ -124,6 +128,7 @@ def disambiguate_names(image_infos):
             f"(dataset {image_info.dataset_id}) renamed to '{new_name}'"
         )
         result.append(image_info._replace(name=new_name))
+        progress.iter_done_report()
     return result
 
 
