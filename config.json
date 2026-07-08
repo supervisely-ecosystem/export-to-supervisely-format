@@ -13,7 +13,9 @@
   "modal_template": "src/modal.html",
   "modal_template_state": {
     "download": "all",
-    "fixExtension": false
+    "fixExtension": false,
+    "preserveStructure": true,
+    "datasetName": ""
   },
   "task_location": "workspace_tasks",
   "isolate": true,
