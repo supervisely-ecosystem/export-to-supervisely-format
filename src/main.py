@@ -312,14 +312,16 @@ def add_additional_label_fields(project_dir: str):
             ann_path = dataset.get_ann_path(name)
             meta_path = dataset.get_item_meta_path(name)
             image_meta = None
+            K_instrinsics = None
             if os.path.exists(meta_path):
                 image_meta = sly.json.load_json_file(meta_path)
                 try:
                     K_instrinsics = f.get_k_intrinsics_from_meta(image_meta)
                 except ValueError:
-                    sly.logger.debug("Failed to get K_intrinsics from meta, skipping...")
-                    progress.iter_done_report()
-                    continue
+                    sly.logger.debug(
+                        f"Failed to get K_intrinsics from meta for '{name}', "
+                        "skipping cylindrical edges for this image..."
+                    )
 
             # If there is no meta and we haven't sanitized any names, we can skip processing this annotation
             if image_meta is None and names_sanitized is False:
@@ -353,13 +355,20 @@ def add_additional_label_fields(project_dir: str):
                                 tag[TJF.TAG_NAME] = s_tag_name
                                 changed = True
 
-                if image_meta is not None:
+                if K_instrinsics is not None:
                     if label[LJF.GEOMETRY_TYPE] == sly.Cuboid2d.geometry_name():
                         linestrings = f.get_linestrings_from_label(label, K_instrinsics)
                         label["_curved_cylindrical_edges"] = linestrings
                         changed = True
                     elif label[LJF.GEOMETRY_TYPE] == sly.Polygon.geometry_name():
                         linestrings = f.get_polygon_linestrings(label["points"], K_instrinsics)
+                        label["_curved_cylindrical_edges"] = linestrings
+                        changed = True
+                    elif label[LJF.GEOMETRY_TYPE] == sly.Multipolygon.geometry_name():
+                        linestrings = [
+                            f.get_polygon_linestrings(part, K_instrinsics)
+                            for part in label["parts"]
+                        ]
                         label["_curved_cylindrical_edges"] = linestrings
                         changed = True
 
