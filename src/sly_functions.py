@@ -447,6 +447,26 @@ def get_polygon_linestrings(polygon: dict, K_intrinsics, dtheta_deg: float = 5.0
     return {"exterior": exterior_linestrings, "interior": interior_linestrings}
 
 
+def parse_entity_ids(raw: Optional[str]) -> Optional[List[int]]:
+    """Parse the ``modal.state.entityIds`` JSON list; empty or invalid -> None.
+
+    The context menu delivers image IDs here when the app is launched from an
+    image selection (with project_id but no dataset/collection).
+    """
+    import json
+
+    if not raw:
+        return None
+    try:
+        ids = json.loads(raw)
+    except (TypeError, ValueError):
+        sly.logger.warning(f"Failed to parse entityIds: {raw!r}")
+        return None
+    if not isinstance(ids, list) or len(ids) == 0:
+        return None
+    return [int(i) for i in ids]
+
+
 def sanitize_name_if_needed(name: str):
     from supervisely._utils import remove_non_printable
 

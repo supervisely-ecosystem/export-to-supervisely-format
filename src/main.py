@@ -40,12 +40,14 @@ dataset_id = sly.env.dataset_id(raise_not_found=False)
 mode = os.environ.get("modal.state.download", "all")
 replace_method = (os.environ.get("modal.state.fixExtension", "false")).lower() == "true"
 collection_id = os.environ.get("modal.state.collectionId")
+entity_ids = f.parse_entity_ids(os.environ.get("modal.state.entityIds"))
 preserve_structure = (os.environ.get("modal.state.preserveStructure", "true")).lower() == "true"
 flat_dataset_name = os.environ.get("modal.state.datasetName")
 # endregion
 sly.logger.info(
     f"Team: {team_id}, Project: {project_id}, Dataset: {dataset_id}, Mode: {mode}, "
     f"Fix extension: {replace_method}, Collection: {collection_id}, "
+    f"Entities: {len(entity_ids) if entity_ids else 0}, "
     f"Preserve structure: {preserve_structure}"
 )
 
@@ -186,11 +188,11 @@ def batched_by_pixels(
 def download_collection_flat(
     project_meta: sly.ProjectMeta,
     download_dir: str,
-    collection_info,
+    default_dataset_name: str,
     collection_images,
 ) -> str:
-    """Download collection images into a single dataset in Supervisely format."""
-    dataset_name = flat_dataset_name or f"Collection {collection_info.id}"
+    """Download a set of images into a single dataset in Supervisely format."""
+    dataset_name = flat_dataset_name or default_dataset_name
     sly.json.dump_json_file(project_meta.to_json(), os.path.join(download_dir, "meta.json"))
 
     dataset_dir = os.path.join(download_dir, dataset_name)
@@ -558,13 +560,31 @@ def download(project: sly.ProjectInfo) -> str:
     sly.fs.mkdir(download_dir, remove_content_if_exists=True)
 
     images_ids = None
+    flat_images = None  # image infos for a flat (single-dataset) download
+    flat_default_name = None
+    # Priority: collection > entityIds > dataset > project. project_id is always
+    # present (even for an image selection), so entityIds must outrank it.
     if collection_id is not None:
         collection_info, collection_images = get_collection_image_infos(int(collection_id))
         rename_filtered_collection(collection_info)
         images_ids = [image.id for image in collection_images]
         dataset_ids = sorted({image.dataset_id for image in collection_images})
+        flat_images = collection_images
+        flat_default_name = f"Collection {collection_info.id}"
         sly.logger.info(
             f"Downloading {len(images_ids)} images of collection {collection_info.id} "
+            f"from {len(dataset_ids)} dataset(s)"
+        )
+    elif entity_ids is not None:
+        image_infos = api.image.get_info_by_id_batch(
+            entity_ids, force_metadata_for_links=False
+        )
+        images_ids = [image.id for image in image_infos]
+        dataset_ids = sorted({image.dataset_id for image in image_infos})
+        flat_images = image_infos
+        flat_default_name = "Selected images"
+        sly.logger.info(
+            f"Downloading {len(images_ids)} selected image(s) "
             f"from {len(dataset_ids)} dataset(s)"
         )
     else:
@@ -579,9 +599,9 @@ def download(project: sly.ProjectInfo) -> str:
         )
 
     if is_overlay_project(project, project_meta):
-        if collection_id is not None and not preserve_structure:
+        if flat_images is not None and not preserve_structure:
             sly.logger.warning(
-                "Flat collection download is not supported for overlay projects. "
+                "Flat download is not supported for overlay projects. "
                 "Dataset structure will be preserved."
             )
         sly.logger.info("Overlay project detected. Starting custom overlay export...")
@@ -589,8 +609,8 @@ def download(project: sly.ProjectInfo) -> str:
             project, project_meta, download_dir, dataset_ids, images_ids
         )
 
-    if collection_id is not None and not preserve_structure:
-        download_collection_flat(project_meta, download_dir, collection_info, collection_images)
+    if flat_images is not None and not preserve_structure:
+        download_collection_flat(project_meta, download_dir, flat_default_name, flat_images)
         try:
             add_additional_label_fields(download_dir)
         except Exception as e:
