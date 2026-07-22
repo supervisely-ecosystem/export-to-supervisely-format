@@ -41,7 +41,9 @@ mode = os.environ.get("modal.state.download", "all")
 replace_method = (os.environ.get("modal.state.fixExtension", "false")).lower() == "true"
 collection_id = os.environ.get("modal.state.collectionId")
 entity_ids = f.parse_entity_ids(os.environ.get("modal.state.entityIds"))
-preserve_structure = (os.environ.get("modal.state.preserveStructure", "true")).lower() == "true"
+preserve_structure = (
+    os.environ.get("modal.state.preserveStructure", "true")
+).lower() == "true"
 flat_dataset_name = os.environ.get("modal.state.datasetName")
 # endregion
 sly.logger.info(
@@ -58,6 +60,12 @@ COLLECTION_BATCH_MAX_ITEMS = 1000
 COLLECTION_BATCH_MAX_PIXELS = 100_000_000  # ~100 MP, e.g. two 8000x6000 images
 COLLECTION_BATCH_MIN_ITEMS = 10  # guaranteed batch size even for very large images
 APP_NAME = "Export to Supervisely format"
+# Downstream delivery truncates file names to 60 chars; cap here to keep ext.
+MAX_NAME_LENGTH = 60
+# Sidecar files are "<image name>.json", so budget the image name for that too.
+IMAGE_NAME_BUDGET = MAX_NAME_LENGTH - len(".json")
+# Headroom for the "_NN" dedup suffix.
+NAME_SUFFIX_RESERVE = 4
 # auto-created filter collections are named like "Filtered entities 2026-07-03T14-31-57-501Z"
 FILTERED_COLLECTION_PATTERN = re.compile(
     r"^Filtered entities \d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-\d{3}Z"
@@ -78,7 +86,9 @@ def rename_filtered_collection(collection_info) -> None:
             f"Collection {collection_info.id} renamed: '{collection_info.name}' -> '{new_name}'"
         )
     except Exception as e:
-        sly.logger.warning(f"Failed to rename collection {collection_info.id}: {repr(e)}")
+        sly.logger.warning(
+            f"Failed to rename collection {collection_info.id}: {repr(e)}"
+        )
 
 
 def get_collection_image_infos(collection_id: int):
@@ -99,11 +109,36 @@ def get_collection_image_infos(collection_id: int):
     return collection_info, image_infos
 
 
+def split_ext(name):
+    """Split a file name into (stem, ext) keeping the extension (incl. dot)."""
+    ext = get_file_ext(name)
+    stem = name[: len(name) - len(ext)] if ext else name
+    return stem, ext
+
+
+def cap_length(name, max_len):
+    """Trim the stem so that stem+ext fits into max_len, never dropping the ext."""
+    if len(name) <= max_len:
+        return name
+    stem, ext = split_ext(name)
+    budget = max_len - len(ext)
+    return f"{stem[:budget]}{ext}" if budget > 0 else stem[:1] + ext
+
+
+def fit_name(name, used_names, max_len=IMAGE_NAME_BUDGET):
+    """Return a unique name that fits max_len with its extension preserved."""
+    if len(name) > max_len:
+        name = cap_length(name, max_len - NAME_SUFFIX_RESERVE)
+    return generate_free_name(used_names, name, with_ext=True, extend_used_names=True)
+
+
 def disambiguate_names(image_infos):
     """Rename images whose names repeat across datasets in the flat list.
 
     Every image involved in a name conflict gets its source dataset ID appended
-    to the name, so the origin of each item stays visible.
+    to the name, so the origin of each item stays visible. Names are capped so
+    both the image and its "<name>.json" sidecars survive downstream truncation
+    to MAX_NAME_LENGTH (extension and dataset ID preserved).
     """
     progress = sly.Progress(
         "Checking for duplicate names", len(image_infos), need_info_log=True
@@ -111,31 +146,36 @@ def disambiguate_names(image_infos):
     name_counts = defaultdict(int)
     for image_info in image_infos:
         name_counts[image_info.name] += 1
-    used_names = {image_info.name for image_info in image_infos}
+    used_names = set()
     result = []
     for image_info in image_infos:
-        if name_counts[image_info.name] < 2:
-            result.append(image_info)
-            progress.iter_done_report()
-            continue
-        if "." in image_info.name:
-            stem, ext = image_info.name.rsplit(".", 1)
-            new_name = f"{stem}_{image_info.dataset_id}.{ext}"
+        original = image_info.name
+        if name_counts[original] < 2:
+            new_name = fit_name(original, used_names)
         else:
-            new_name = f"{image_info.name}_{image_info.dataset_id}"
-        new_name = generate_free_name(
-            used_names, new_name, with_ext=True, extend_used_names=True
-        )
-        sly.logger.info(
-            f"Duplicate image name in collection: '{image_info.name}' "
-            f"(dataset {image_info.dataset_id}) renamed to '{new_name}'"
-        )
-        result.append(image_info._replace(name=new_name))
+            stem, ext = split_ext(original)
+            suffix = f"_{image_info.dataset_id}"
+            budget = IMAGE_NAME_BUDGET - NAME_SUFFIX_RESERVE - len(suffix) - len(ext)
+            trimmed_stem = stem[:budget] if budget > 0 else stem[:1]
+            candidate = f"{trimmed_stem}{suffix}{ext}"
+            new_name = generate_free_name(
+                used_names, candidate, with_ext=True, extend_used_names=True
+            )
+        if new_name != original:
+            sly.logger.info(
+                f"Image name '{original}' (dataset {image_info.dataset_id}) "
+                f"exported as '{new_name}'"
+            )
+            result.append(image_info._replace(name=new_name))
+        else:
+            result.append(image_info)
         progress.iter_done_report()
     return result
 
 
-def download_images_batch(dataset_id: int, image_ids: List[int], paths: List[str]) -> None:
+def download_images_batch(
+    dataset_id: int, image_ids: List[int], paths: List[str]
+) -> None:
     """Download images to local paths, preferring the faster async downloader.
 
     Falls back to the sync download on any error, matching the fallback
@@ -174,7 +214,9 @@ def batched_by_pixels(
     batch_pixels = 0
     for image in images:
         image_pixels = (image.width or 0) * (image.height or 0)
-        pixel_cap_hit = len(batch) >= min_items and batch_pixels + image_pixels > max_pixels
+        pixel_cap_hit = (
+            len(batch) >= min_items and batch_pixels + image_pixels > max_pixels
+        )
         if batch and (pixel_cap_hit or len(batch) >= max_items):
             yield batch
             batch = []
@@ -193,7 +235,9 @@ def download_collection_flat(
 ) -> str:
     """Download a set of images into a single dataset in Supervisely format."""
     dataset_name = flat_dataset_name or default_dataset_name
-    sly.json.dump_json_file(project_meta.to_json(), os.path.join(download_dir, "meta.json"))
+    sly.json.dump_json_file(
+        project_meta.to_json(), os.path.join(download_dir, "meta.json")
+    )
 
     dataset_dir = os.path.join(download_dir, dataset_name)
     img_dir = os.path.join(dataset_dir, sly.Dataset.item_dir_name)
@@ -219,7 +263,9 @@ def download_collection_flat(
                 ann = id_to_ann.get(image.id)
                 if ann is None:
                     ann = sly.Annotation((image.height, image.width)).to_json()
-                sly.json.dump_json_file(ann, os.path.join(ann_dir, f"{image.name}.json"))
+                sly.json.dump_json_file(
+                    ann, os.path.join(ann_dir, f"{image.name}.json")
+                )
                 sly.json.dump_json_file(
                     image._asdict(),
                     os.path.join(img_info_dir, f"{image.name}.json"),
@@ -319,7 +365,9 @@ def add_additional_label_fields(project_dir: str):
                 try:
                     K_instrinsics = f.get_k_intrinsics_from_meta(image_meta)
                 except ValueError:
-                    sly.logger.debug("Failed to get K_intrinsics from meta, skipping...")
+                    sly.logger.debug(
+                        "Failed to get K_intrinsics from meta, skipping..."
+                    )
                     progress.iter_done_report()
                     continue
 
@@ -361,7 +409,9 @@ def add_additional_label_fields(project_dir: str):
                         label["_curved_cylindrical_edges"] = linestrings
                         changed = True
                     elif label[LJF.GEOMETRY_TYPE] == sly.Polygon.geometry_name():
-                        linestrings = f.get_polygon_linestrings(label["points"], K_instrinsics)
+                        linestrings = f.get_polygon_linestrings(
+                            label["points"], K_instrinsics
+                        )
                         label["_curved_cylindrical_edges"] = linestrings
                         changed = True
 
@@ -439,7 +489,9 @@ def download_overlay_project(
     dataset_ids: List[int],
     images_ids: List[int] = None,
 ) -> str:
-    sly.json.dump_json_file(project_meta.to_json(), os.path.join(download_dir, "meta.json"))
+    sly.json.dump_json_file(
+        project_meta.to_json(), os.path.join(download_dir, "meta.json")
+    )
 
     if mode != "all":
         sly.logger.warning(
@@ -508,7 +560,9 @@ def download_overlay_project(
         parent_ids = {image.id for image in parent_images}
         orphan_overlay_ids = set(overlay_images_by_parent) - parent_ids
         if orphan_overlay_ids:
-            skipped_count = sum(len(overlay_images_by_parent[id]) for id in orphan_overlay_ids)
+            skipped_count = sum(
+                len(overlay_images_by_parent[id]) for id in orphan_overlay_ids
+            )
             sly.logger.warning(
                 f"Dataset '{dataset.name}' contains overlays with missing parent images: "
                 f"{sorted(orphan_overlay_ids)}. They will be skipped."
@@ -542,7 +596,9 @@ def download_overlay_project(
         for image in parent_images:
             if image.meta:
                 sly.fs.mkdir(meta_dir)
-                sly.json.dump_json_file(image.meta, os.path.join(meta_dir, f"{image.name}.json"))
+                sly.json.dump_json_file(
+                    image.meta, os.path.join(meta_dir, f"{image.name}.json")
+                )
 
     sly.logger.info("Overlay project downloaded...")
     return download_dir
@@ -565,7 +621,9 @@ def download(project: sly.ProjectInfo) -> str:
     # Priority: collection > entityIds > dataset > project. project_id is always
     # present (even for an image selection), so entityIds must outrank it.
     if collection_id is not None:
-        collection_info, collection_images = get_collection_image_infos(int(collection_id))
+        collection_info, collection_images = get_collection_image_infos(
+            int(collection_id)
+        )
         rename_filtered_collection(collection_info)
         images_ids = [image.id for image in collection_images]
         dataset_ids = sorted({image.dataset_id for image in collection_images})
@@ -610,7 +668,9 @@ def download(project: sly.ProjectInfo) -> str:
         )
 
     if flat_images is not None and not preserve_structure:
-        download_collection_flat(project_meta, download_dir, flat_default_name, flat_images)
+        download_collection_flat(
+            project_meta, download_dir, flat_default_name, flat_images
+        )
         try:
             add_additional_label_fields(download_dir)
         except Exception as e:
