@@ -599,9 +599,9 @@ def download(project: sly.ProjectInfo) -> str:
         )
 
     if is_overlay_project(project, project_meta):
-        if collection_id is not None and not preserve_structure:
+        if flat_images is not None and not preserve_structure:
             sly.logger.warning(
-                "Flat collection download is not supported for overlay projects. "
+                "Flat download is not supported for overlay projects. "
                 "Dataset structure will be preserved."
             )
         sly.logger.info("Overlay project detected. Starting custom overlay export...")
