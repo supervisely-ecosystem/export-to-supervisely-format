@@ -604,6 +604,57 @@ def download_overlay_project(
     return download_dir
 
 
+def enforce_name_limits(root_dir: str) -> None:
+    """Shorten exported file names that downstream delivery would truncate.
+
+    The SDK download keeps original image names, which for the standard
+    Supervisely format also drive the "<name>.json" sidecars in ann/img_info/
+    meta. Names longer than the delivery cap get truncated on the way to the
+    user, dropping the extension and colliding distinct files. Here we rename
+    the image together with its sidecars to a capped, per-dataset-unique name
+    (extension preserved) so nothing is truncated later. Not applied to overlay
+    projects, whose parent/overlay files are linked by name.
+    """
+    renamed = 0
+    for img_dir, _, files in os.walk(root_dir):
+        if os.path.basename(img_dir) != sly.Dataset.item_dir_name:
+            continue
+        dataset_dir = os.path.dirname(img_dir)
+        sidecar_dirs = [
+            os.path.join(dataset_dir, sly.Dataset.ann_dir_name),
+            os.path.join(dataset_dir, sly.Dataset.item_info_dir_name),
+            os.path.join(dataset_dir, sly.Dataset.meta_dir_name),
+        ]
+        info_dir = os.path.join(dataset_dir, sly.Dataset.item_info_dir_name)
+        used_names = set()
+        for name in sorted(files):
+            new_name = fit_name(name, used_names)
+            if new_name == name:
+                continue
+            os.rename(os.path.join(img_dir, name), os.path.join(img_dir, new_name))
+            for sidecar_dir in sidecar_dirs:
+                old_side = os.path.join(sidecar_dir, f"{name}.json")
+                if os.path.isfile(old_side):
+                    os.rename(old_side, os.path.join(sidecar_dir, f"{new_name}.json"))
+            info_path = os.path.join(info_dir, f"{new_name}.json")
+            if os.path.isfile(info_path):
+                try:
+                    info = sly.json.load_json_file(info_path)
+                    if isinstance(info, dict) and info.get("name") is not None:
+                        info["name"] = new_name
+                        sly.json.dump_json_file(info, info_path, indent=4)
+                except Exception as e:
+                    sly.logger.warning(
+                        f"Failed to update img_info name for '{new_name}': {repr(e)}"
+                    )
+            sly.logger.info(f"Exported file '{name}' renamed to '{new_name}'")
+            renamed += 1
+    if renamed:
+        sly.logger.info(
+            f"Shortened {renamed} file name(s) to fit the {MAX_NAME_LENGTH}-char limit"
+        )
+
+
 def download(project: sly.ProjectInfo) -> str:
     """Downloads the project and returns the path to the downloaded directory.
 
@@ -700,6 +751,8 @@ def download(project: sly.ProjectInfo) -> str:
         add_additional_label_fields(download_dir)
     except Exception as e:
         sly.logger.error(f"Error while adding additional fields: {e}")
+
+    enforce_name_limits(download_dir)
 
     sly.logger.info("Project downloaded...")
     return download_dir
