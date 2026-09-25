@@ -8,8 +8,8 @@
     "export"
   ],
   "description": "images or audio and JSON annotations",
-  "docker_image": "supervisely/base-py-sdk-hardened:6.74.10",
-  "instance_version": "6.17.8",
+  "docker_image": "supervisely/base-py-sdk-hardened:6.74.41",
+  "instance_version": "6.18.0",
   "main_script": "src/main.py",
   "modal_template": "src/modal.html",
   "modal_template_state": {
