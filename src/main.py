@@ -60,6 +60,8 @@ COLLECTION_BATCH_MAX_ITEMS = 1000
 COLLECTION_BATCH_MAX_PIXELS = 100_000_000  # ~100 MP, e.g. two 8000x6000 images
 COLLECTION_BATCH_MIN_ITEMS = 10  # guaranteed batch size even for very large images
 APP_NAME = "Export to Supervisely format"
+# Compared as a string so the app still imports on SDKs without ProjectType.AUDIO.
+AUDIO_PROJECT_TYPE = "audio"
 # Downstream delivery truncates file names to 60 chars; cap here to keep ext.
 MAX_NAME_LENGTH = 60
 # Sidecar files are "<image name>.json", so budget the image name for that too.
@@ -655,6 +657,32 @@ def enforce_name_limits(root_dir: str) -> None:
         )
 
 
+def download_audio_project(project: sly.ProjectInfo, download_dir: str) -> str:
+    """Downloads an audio project: recordings, segment labels and meta.json.
+
+    The project's spectrogram settings travel in meta.json, so Auto Import
+    restores the analysis the labels were drawn under. Image-only options
+    (collections, selections, extension fixing) do not apply to audio.
+    """
+    if collection_id is not None or entity_ids is not None:
+        sly.logger.warning(
+            "Collections and item selections are not supported for audio projects. "
+            "The whole project or dataset will be exported."
+        )
+    sly.logger.info(f"Starting download of audio project {project.name} to {download_dir}...")
+    sly.download(
+        api,
+        project.id,
+        dest_dir=download_dir,
+        dataset_ids=get_dataset_ids(project),
+        log_progress=True,
+        download_audios=mode == "all",
+        save_audio_info=True,
+    )
+    sly.logger.info("Project downloaded...")
+    return download_dir
+
+
 def download(project: sly.ProjectInfo) -> str:
     """Downloads the project and returns the path to the downloaded directory.
 
@@ -665,6 +693,9 @@ def download(project: sly.ProjectInfo) -> str:
     """
     download_dir = os.path.join(data_dir, f"{project.id}_{project.name}")
     sly.fs.mkdir(download_dir, remove_content_if_exists=True)
+
+    if project.type == AUDIO_PROJECT_TYPE:
+        return download_audio_project(project, download_dir)
 
     images_ids = None
     flat_images = None  # image infos for a flat (single-dataset) download
