@@ -4,9 +4,10 @@
   "version": "2.0.0",
   "categories": [
     "images",
+    "audio",
     "export"
   ],
-  "description": "images and JSON annotations",
+  "description": "images or audio and JSON annotations",
   "docker_image": "supervisely/base-py-sdk-hardened:6.74.10",
   "instance_version": "6.17.8",
   "main_script": "src/main.py",
@@ -25,7 +26,9 @@
   "context_menu": {
     "target": [
       "images_project",
-      "images_dataset"
+      "images_dataset",
+      "audio_project",
+      "audio_dataset"
     ],
     "context_root": "Download as"
   },
