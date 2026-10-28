@@ -1,0 +1,6 @@
+# Tool configuration only. Runtime dependencies live in dev_requirements.txt
+# (the platform's release CI forbids requirements.txt).
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+filterwarnings = ["ignore::SyntaxWarning", "ignore::DeprecationWarning"]

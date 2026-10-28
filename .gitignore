@@ -7,4 +7,4 @@ supervisely
 debug
 __pycache__
 data/
-.DS_Store
+.DS_Store.pytest_cache/
