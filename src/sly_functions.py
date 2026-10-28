@@ -1,4 +1,4 @@
-# import json
+from contextlib import contextmanager
 from typing import List, Optional, Tuple
 
 import cv2
@@ -335,35 +335,63 @@ def get_linestrings_from_label(label, K_intrinsics):
 # )
 
 
-def project_meta_deserialization_check(api: sly.Api, project: sly.ProjectInfo) -> None:
+def load_exportable_meta(api: sly.Api, project_id: int) -> Tuple[sly.ProjectMeta, bool]:
+    """Return the project meta to export and whether it had to be repaired.
+
+    A meta whose project settings fail to deserialize is repaired here, in memory only:
+    first by disabling multi-view, then by dropping the project settings. The project on
+    the server is never modified (an export is read-only).
+    """
     from supervisely.project.project_meta import ProjectMetaJsonFields
     from supervisely.project.project_settings import ProjectSettingsJsonFields
 
-    meta_json = api.project.get_meta(project.id, with_settings=True)
+    meta_json = api.project.get_meta(project_id, with_settings=True)
     try:
-        meta = sly.ProjectMeta.from_json(meta_json)
+        return sly.ProjectMeta.from_json(meta_json), False
     except Exception as e:
-        sly.logger.warning(f"Error while getting project meta: {repr(e)}")
-        sly.logger.info("Trying to fix project meta...")
+        sly.logger.warning(f"Project meta can not be read as is: {repr(e)}")
 
-        settings = meta_json.get(ProjectMetaJsonFields.PROJECT_SETTINGS)
-        if settings is not None:
-            multi_view = settings.get(ProjectSettingsJsonFields.MULTI_VIEW)
-            if multi_view.get(ProjectSettingsJsonFields.ENABLED) is True:
-                # try to fix the project settings by disabling the multi-view
-                multi_view[ProjectSettingsJsonFields.ENABLED] = False
-                try:
-                    meta = sly.ProjectMeta.from_json(meta_json)
-                    api.project.update_meta(project.id, meta)
-                    return
-                except Exception as e:
-                    pass
+    settings = meta_json.get(ProjectMetaJsonFields.PROJECT_SETTINGS)
+    if settings is not None:
+        multi_view = settings.get(ProjectSettingsJsonFields.MULTI_VIEW) or {}
+        if multi_view.get(ProjectSettingsJsonFields.ENABLED) is True:
+            multi_view[ProjectSettingsJsonFields.ENABLED] = False
+            try:
+                meta = sly.ProjectMeta.from_json(meta_json)
+                sly.logger.warning(
+                    "Exporting the project meta with multi-view disabled. "
+                    "The project itself is not changed."
+                )
+                return meta, True
+            except Exception:
+                pass
 
-        # try to fix the project meta by removing the project settings
-        sly.logger.info("Trying to get project meta without settings...")
-        meta_json = api.project.get_meta(project.id)
-        meta = sly.ProjectMeta.from_json(meta_json)
-        api.project.update_meta(project.id, meta)
+    meta = sly.ProjectMeta.from_json(api.project.get_meta(project_id))
+    sly.logger.warning(
+        "Exporting the project meta without project settings. The project itself is not changed."
+    )
+    return meta, True
+
+
+@contextmanager
+def serve_meta(api: sly.Api, project_id: int, meta: sly.ProjectMeta):
+    """Make api.project.get_meta(project_id) return `meta` inside the block.
+
+    The SDK download functions read the meta from the server themselves; this hands them
+    the repaired meta without writing it to the project.
+    """
+    original = api.project.get_meta
+
+    def get_meta(id, *args, **kwargs):
+        if id == project_id:
+            return meta.to_json()
+        return original(id, *args, **kwargs)
+
+    api.project.get_meta = get_meta
+    try:
+        yield
+    finally:
+        api.project.get_meta = original
 
 
 def get_polygon_linestrings(polygon: dict, K_intrinsics, dtheta_deg: float = 5.0) -> dict:
