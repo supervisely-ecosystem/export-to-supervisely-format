@@ -729,15 +729,28 @@ def download(project: sly.ProjectInfo) -> str:
         )
     else:
         dataset_ids = get_dataset_ids(project)
-    meta_json = api.project.get_meta(project.id, with_settings=True)
-    try:
-        project_meta = sly.ProjectMeta.from_json(meta_json)
-    except Exception:
-        f.project_meta_deserialization_check(api, project)
-        project_meta = sly.ProjectMeta.from_json(
-            api.project.get_meta(project.id, with_settings=True)
-        )
+    project_meta, meta_repaired = f.load_exportable_meta(api, project.id)
+    if meta_repaired:
+        with f.serve_meta(api, project.id, project_meta):
+            return download_images(
+                project, project_meta, download_dir, dataset_ids, images_ids, flat_images,
+                flat_default_name,
+            )
+    return download_images(
+        project, project_meta, download_dir, dataset_ids, images_ids, flat_images,
+        flat_default_name,
+    )
 
+
+def download_images(
+    project: sly.ProjectInfo,
+    project_meta: sly.ProjectMeta,
+    download_dir: str,
+    dataset_ids: List[int],
+    images_ids: List[int],
+    flat_images,
+    flat_default_name: str,
+) -> str:
     if is_overlay_project(project, project_meta):
         if flat_images is not None and not preserve_structure:
             sly.logger.warning(
