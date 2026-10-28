@@ -325,97 +325,106 @@ if replace_method:
     sly.api.image_api.ImageApi._convert_json_info = ours_convert_json_info
 
 
+def sanitized_names(names: List[str]) -> Dict[str, str]:
+    """Map names that need sanitizing to their sanitized form.
+
+    A name is left as is when its sanitized form would collide with another name, so
+    two classes (or tags) never merge into one.
+    """
+    taken = set(names)
+    renames = {}
+    for name in names:
+        new_name = f.sanitize_name_if_needed(name)
+        if not new_name or new_name == name:
+            continue
+        if new_name in taken:
+            sly.logger.warning(
+                f"Name {name!r} is kept: its sanitized form {new_name!r} is already used"
+            )
+            continue
+        taken.discard(name)
+        taken.add(new_name)
+        renames[name] = new_name
+    return renames
+
+
+def add_curved_edges(label: dict, k_intrinsics, item_name: str) -> bool:
+    """Add "_curved_cylindrical_edges" to a cuboid_2d or polygon label; False if skipped."""
+    try:
+        if label[LJF.GEOMETRY_TYPE] == sly.Cuboid2d.geometry_name():
+            label["_curved_cylindrical_edges"] = f.get_linestrings_from_label(label, k_intrinsics)
+            return True
+        if label[LJF.GEOMETRY_TYPE] == sly.Polygon.geometry_name():
+            label["_curved_cylindrical_edges"] = f.get_polygon_linestrings(
+                label["points"], k_intrinsics
+            )
+            return True
+    except Exception as e:
+        sly.logger.warning(
+            f"Curved edges are not added to a label of '{item_name}': {repr(e)}"
+        )
+    return False
+
+
 def add_additional_label_fields(project_dir: str):
     project = sly.Project(project_dir, sly.OpenMode.READ)
     progress = sly.Progress("Adding additional fields to labels", project.total_items)
 
-    class_names_sanitized = {}
-    new_obj_classes = []
-    for objclass in project.meta.obj_classes:
-        santized_class_name = f.sanitize_name_if_needed(objclass.name)
-        if santized_class_name:
-            class_names_sanitized[objclass.name] = santized_class_name
-            objclass = objclass.clone(name=santized_class_name)
-        new_obj_classes.append(objclass)
-
-    tagmeta_names_sanitized = {}
-    new_tagmetas = []
-    for tagmeta in project.meta.tag_metas:
-        santized_tag_name = f.sanitize_name_if_needed(tagmeta.name)
-        if santized_tag_name:
-            tagmeta_names_sanitized[tagmeta.name] = santized_tag_name
-            tagmeta = tagmeta.clone(name=santized_tag_name)
-        new_tagmetas.append(tagmeta)
-
+    class_names_sanitized = sanitized_names([c.name for c in project.meta.obj_classes])
+    tagmeta_names_sanitized = sanitized_names([t.name for t in project.meta.tag_metas])
     names_sanitized = len(class_names_sanitized) > 0 or len(tagmeta_names_sanitized) > 0
     if names_sanitized:
+        new_obj_classes = [
+            c.clone(name=class_names_sanitized[c.name]) if c.name in class_names_sanitized else c
+            for c in project.meta.obj_classes
+        ]
+        new_tagmetas = [
+            t.clone(name=tagmeta_names_sanitized[t.name]) if t.name in tagmeta_names_sanitized else t
+            for t in project.meta.tag_metas
+        ]
         new_meta = project.meta.clone(new_obj_classes, new_tagmetas)
-        meta_path = project._get_project_meta_path()
-        sly.json.dump_json_file(new_meta.to_json(), meta_path)
+        sly.json.dump_json_file(new_meta.to_json(), project._get_project_meta_path())
 
-    for dataset in project:
+    def rename_tags(tags) -> bool:
+        changed = False
+        for tag in tags or []:
+            new_name = tagmeta_names_sanitized.get(tag.get(TJF.TAG_NAME))
+            if new_name:
+                tag[TJF.TAG_NAME] = new_name
+                changed = True
+        return changed
+
+    for dataset in project.datasets:
         dataset: sly.Dataset
-
-        names = dataset.get_items_names()
-        for name in names:
-            changed = False
-            ann_path = dataset.get_ann_path(name)
+        for name in dataset.get_items_names():
+            # Calibration is optional: names are sanitized for every item either way,
+            # otherwise annotations would reference classes missing from meta.json.
+            k_intrinsics = None
             meta_path = dataset.get_item_meta_path(name)
-            image_meta = None
             if os.path.exists(meta_path):
-                image_meta = sly.json.load_json_file(meta_path)
                 try:
-                    K_instrinsics = f.get_k_intrinsics_from_meta(image_meta)
-                except ValueError:
-                    sly.logger.debug(
-                        "Failed to get K_intrinsics from meta, skipping..."
-                    )
-                    progress.iter_done_report()
-                    continue
+                    k_intrinsics = f.get_k_intrinsics_from_meta(sly.json.load_json_file(meta_path))
+                except (ValueError, TypeError):
+                    sly.logger.debug(f"No usable calibration in the meta of '{name}'")
 
-            # If there is no meta and we haven't sanitized any names, we can skip processing this annotation
-            if image_meta is None and names_sanitized is False:
+            if k_intrinsics is None and not names_sanitized:
                 progress.iter_done_report()
                 continue
 
+            ann_path = dataset.get_ann_path(name)
             ann_json = sly.json.load_json_file(ann_path)
-            image_tags = ann_json.get(AJF.IMG_TAGS, [])
-            if image_tags and names_sanitized:
-                for tag in image_tags:
-                    santized_tag_name = tagmeta_names_sanitized.get(tag[ApiField.NAME])
-                    if santized_tag_name:
-                        tag[ApiField.NAME] = santized_tag_name
-                        changed = True
-
-            # todo image tags
+            changed = False
+            if names_sanitized:
+                changed |= rename_tags(ann_json.get(AJF.IMG_TAGS))
             for label in ann_json[AJF.LABELS]:
                 if names_sanitized:
-                    objclass_name = label[LJF.OBJ_CLASS_NAME]
-                    santized_class_name = class_names_sanitized.get(objclass_name)
-                    if santized_class_name:
-                        label[LJF.OBJ_CLASS_NAME] = santized_class_name
+                    new_class = class_names_sanitized.get(label[LJF.OBJ_CLASS_NAME])
+                    if new_class:
+                        label[LJF.OBJ_CLASS_NAME] = new_class
                         changed = True
-
-                    label_tags = label.get(LJF.TAGS)
-                    if label_tags:
-                        for tag in label_tags:
-                            tag_name = tag[TJF.TAG_NAME]
-                            s_tag_name = tagmeta_names_sanitized.get(tag_name)
-                            if s_tag_name:
-                                tag[TJF.TAG_NAME] = s_tag_name
-                                changed = True
-
-                if image_meta is not None:
-                    if label[LJF.GEOMETRY_TYPE] == sly.Cuboid2d.geometry_name():
-                        linestrings = f.get_linestrings_from_label(label, K_instrinsics)
-                        label["_curved_cylindrical_edges"] = linestrings
-                        changed = True
-                    elif label[LJF.GEOMETRY_TYPE] == sly.Polygon.geometry_name():
-                        linestrings = f.get_polygon_linestrings(
-                            label["points"], K_instrinsics
-                        )
-                        label["_curved_cylindrical_edges"] = linestrings
-                        changed = True
+                    changed |= rename_tags(label.get(LJF.TAGS))
+                if k_intrinsics is not None:
+                    changed |= add_curved_edges(label, k_intrinsics, name)
 
             if changed:
                 sly.json.dump_json_file(ann_json, ann_path)
